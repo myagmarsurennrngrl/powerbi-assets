@@ -68,6 +68,9 @@ function RootNavigator() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="clinic/[id]" options={{ title: mn.clinics.title }} />
       <Stack.Screen name="doctor/[id]" options={{ title: mn.doctors.title }} />
+      <Stack.Screen name="plan/[id]" options={{ title: mn.planBuilder.title }} />
+      <Stack.Screen name="visit/[id]" options={{ title: mn.visitDetail.title }} />
+      <Stack.Screen name="route/[date]" options={{ title: mn.week.title }} />
     </Stack>
   );
 }

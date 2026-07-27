@@ -63,8 +63,17 @@ Legend:
 
 ## 2. Row-Level-Security policy summary
 
-Every table has `ENABLE ROW LEVEL SECURITY` **and** `FORCE ROW LEVEL SECURITY`. There is no
+Every table has `ENABLE ROW LEVEL SECURITY`. There is no
 "allow all" fallback policy anywhere; a table with no matching policy denies access.
+An automated test (`tests/db/rls.test.ts`) fails the build if any table in `public`
+ever lacks RLS or lacks a policy.
+
+**`FORCE ROW LEVEL SECURITY` is deliberately NOT used.** `FORCE` applies policies to the
+table *owner* as well. The identity helpers below are `SECURITY DEFINER` and read
+`app_user`; under `FORCE` they would become subject to the very `app_user` policy that
+calls them, and recurse. The owner role never serves application traffic — PostgREST
+connects as `anon` or `authenticated` — so `FORCE` would add no protection against any
+realistic attacker. Recorded here so it reads as a decision, not an oversight.
 
 Helper functions (all `SECURITY DEFINER`, `STABLE`, `search_path = ''`):
 

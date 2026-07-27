@@ -15,14 +15,17 @@ managers get visibility and KPIs; the data feeds Power BI.
 
 | | |
 |---|---|
-| **Phase** | 1 of 7 complete — see [`docs/PHASE-1-STATUS.md`](docs/PHASE-1-STATUS.md) |
-| **Tests** | 95 passing |
+| **Phase** | 2 of 7 complete — see [`docs/PHASE-2-STATUS.md`](docs/PHASE-2-STATUS.md) |
+| **Tests** | 127 passing |
 | **Platforms** | iOS and Android bundles verified |
 | **Audio recording** | Not implemented. Flag off. No recording code exists. |
 
-Phase 1 delivers authentication, roles, row-level security, the audit log, and all master
-data (clinics, doctors, brands, products, users). Planning, visits, KPI and offline support
-are Phases 2–7.
+Phase 1 delivered authentication, roles, row-level security, the audit log, and all master
+data. Phase 2 adds weekly planning, the plan status machine with a Friday-18:00 submission
+deadline, duplicate-visit prevention, and today's route with opt-in distance. Visits, KPI,
+manager dashboards and offline support are Phases 3–7.
+
+Phase reports: [Phase 1](docs/PHASE-1-STATUS.md) · [Phase 2](docs/PHASE-2-STATUS.md)
 
 ---
 
@@ -65,7 +68,7 @@ npm start                   # scan the QR code with Expo Go
 ```
 
 ```bash
-npm test                    # 95 tests (skips DB tests if no PostgreSQL is running)
+npm test                    # 127 tests (skips DB tests if no PostgreSQL is running)
 npm run typecheck           # app + tests
 node scripts/db-provision.mjs   # rebuild a local test database from scratch
 ```
@@ -100,8 +103,9 @@ real project.
 - Login restricted to approved company email domains, enforced by a trigger on `auth.users`.
 - Row-level security on every table, with a structural test that fails the build if a new
   table ever lands without a policy.
-- `DELETE` is granted to no application role anywhere. Master data is soft-deleted;
-  transactional data is immutable.
+- `DELETE` is granted almost nowhere: master data is soft-deleted and transactional data is
+  immutable. The only exceptions are the child lists of a draft plan (a visit's doctors and
+  brands), and a test with an explicit allowlist fails the build if that ever widens.
 - Append-only audit log, protected by revoked grants *and* a trigger.
 - Session tokens in the device keychain/keystore, not plain storage.
 - The app refuses to start if a `service_role` key is found in its configuration.

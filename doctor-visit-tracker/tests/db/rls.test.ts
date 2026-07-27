@@ -38,15 +38,34 @@ describe.skipIf(!DB_AVAILABLE)('row level security', () => {
       expect(rows.map((r) => r.table_name)).toEqual([]);
     });
 
-    it('DELETE is granted to nobody on any application table', async () => {
+    it('DELETE is granted only on the two child list tables, nowhere else', async () => {
+      /**
+       * Master data is soft-deleted and transactional data is immutable, so
+       * DELETE is granted almost nowhere.
+       *
+       * The two exceptions are the child lists of a plan the representative is
+       * still drafting: removing a doctor or a brand from a draft visit is
+       * ordinary editing, not destruction of a business record. Both are
+       * additionally gated by RLS to the plan owner while the plan is editable.
+       *
+       * This allowlist is deliberately explicit: any NEW delete grant fails
+       * this test and has to be argued for.
+       */
+      const ALLOWED = new Set(['planned_visit_doctor', 'planned_visit_brand']);
+
       const rows = await asSuperuser<{ table_name: string; grantee: string }>(
-        `SELECT table_name, grantee
+        `SELECT DISTINCT table_name, grantee
            FROM information_schema.role_table_grants
           WHERE table_schema = 'public'
             AND privilege_type = 'DELETE'
             AND grantee IN ('anon', 'authenticated')`,
       );
-      expect(rows).toEqual([]);
+
+      // Nothing is ever deletable by an anonymous caller.
+      expect(rows.filter((r) => r.grantee === 'anon')).toEqual([]);
+
+      const unexpected = rows.filter((r) => !ALLOWED.has(r.table_name));
+      expect(unexpected).toEqual([]);
     });
   });
 

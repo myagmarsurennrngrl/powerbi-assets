@@ -32,7 +32,7 @@ A planned visit whose realised `visit.status = 'completed'` and `is_draft = fals
 | Manager-approved official holiday | approved exception, reason `official_assignment` flagged holiday |
 | Manager-approved sick leave | approved exception, reason `sick_leave` |
 | Manager-approved clinic closure | approved exception, reason `clinic_closed` |
-| Officially rescheduled to a future date | `status = 'rescheduled'` **and** `rescheduled_to_visit_id` points to a visit with `planned_date > original planned_date` |
+| Officially rescheduled to a future date | `status = 'rescheduled'` **and** `rescheduled_to_planned_visit_id` points to a planned visit with a LATER `planned_date` |
 
 **KPI-excluding reason set (default config):**
 `sick_leave`, `clinic_closed`, `official_assignment`, `emergency`, `wrong_clinic_coordinates`, `appointment_rescheduled`.

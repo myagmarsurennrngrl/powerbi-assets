@@ -1,61 +1,103 @@
 /**
  * Screen 2 — Нүүр (Home dashboard)
  *
- * PHASE 1 HONESTY NOTE
- * --------------------
- * The full dashboard needs plans and visits, which arrive in Phases 2 and 3.
- * Rather than showing fake numbers, this screen shows what genuinely works
- * today (identity, role, assigned brands, master-data counts) and labels
- * everything else as «Хараахан хэрэгжээгүй» with the phase it is coming in.
- * No tile displays a number the database cannot yet produce.
+ * PHASE 2 SCOPE
+ * -------------
+ * Today's planned / remaining counts and this week's plan status are now real,
+ * computed from actual plan data. "Completed today" is still shown as pending
+ * because a visit cannot be completed until Phase 3 — reporting 0 completed
+ * would read as "you have done nothing today", which is not the same thing as
+ * "the feature does not exist yet". KPI and follow-ups remain labelled.
  */
 import React, { useCallback } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSession } from '../../src/lib/auth';
 import { useAsyncData } from '../../src/data/useAsyncData';
 import { fetchBrands, fetchMyBrandAssignments } from '../../src/data/repositories';
+import { fetchPlanForWeek, fetchRoute, type PlanStatus, type RouteStop } from '../../src/data/planning';
 import {
   Card,
   Chip,
   ErrorState,
   LoadingState,
   NotImplemented,
-  Section,
+  Pill,
+  PrimaryButton,
   SecondaryButton,
+  Section,
 } from '../../src/components/ui';
 import { mn } from '../../src/lib/i18n/mn';
-import { userRoleMn } from '../../src/lib/i18n/enums';
-import { formatDateLongMn } from '../../src/lib/datetime';
+import { planStatusMn, userRoleMn } from '../../src/lib/i18n/enums';
+import { formatDateLongMn, startOfIsoWeek } from '../../src/lib/datetime';
 import { colors, radius, spacing, typography } from '../../src/theme';
+
+type Tone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+
+const PLAN_TONE: Record<PlanStatus, Tone> = {
+  draft: 'neutral',
+  submitted: 'info',
+  approved: 'success',
+  rejected: 'danger',
+  active: 'success',
+  completed: 'neutral',
+  locked: 'neutral',
+};
 
 export default function HomeScreen() {
   const { profile } = useSession();
   const router = useRouter();
+  const isRep = profile?.role === 'representative';
 
   const loader = useCallback(async () => {
     if (!profile) return { data: null, error: null };
 
-    const [assignments, brands] = await Promise.all([
+    const weekStart = startOfIsoWeek(new Date());
+
+    const [assignments, brands, route, plan] = await Promise.all([
       fetchMyBrandAssignments(profile.id),
       fetchBrands(),
+      isRep ? fetchRoute() : Promise.resolve({ data: [] as RouteStop[], error: null }),
+      isRep ? fetchPlanForWeek(weekStart) : Promise.resolve({ data: null, error: null }),
     ]);
 
     if (assignments.error) return { data: null, error: assignments.error };
     if (brands.error) return { data: null, error: brands.error };
+    if (route.error) return { data: null, error: route.error };
 
     const byId = new Map((brands.data ?? []).map((b) => [b.id, b]));
     const myBrands = (assignments.data ?? [])
       .map((a) => byId.get(a.brand_id))
       .filter((b): b is NonNullable<typeof b> => !!b);
 
-    return { data: { myBrands }, error: null };
-  }, [profile]);
+    const stops = route.data ?? [];
 
-  const { data, loading, refreshing, error, reload, refresh } = useAsyncData(loader, [profile?.id]);
+    return {
+      data: {
+        myBrands,
+        stops,
+        plan: plan.data ?? null,
+        plannedToday: stops.length,
+        completedToday: stops.filter((s) => s.status === 'completed').length,
+        remainingToday: stops.filter((s) => s.status === 'planned' || s.status === 'in_progress')
+          .length,
+      },
+      error: null,
+    };
+  }, [profile, isRep]);
 
-  if (!profile) return <LoadingState />;
-  if (loading) return <LoadingState />;
+  const { data, loading, refreshing, error, reload, refresh } = useAsyncData(loader, [
+    profile?.id,
+    isRep,
+  ]);
+
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
+
+  if (!profile || loading) return <LoadingState />;
 
   return (
     <ScrollView
@@ -71,7 +113,58 @@ export default function HomeScreen() {
 
       {error ? <ErrorState message={error} onRetry={reload} /> : null}
 
-      {profile.role === 'representative' ? (
+      {isRep ? (
+        <>
+          <Section title={mn.today.title}>
+            <View style={styles.statRow}>
+              <Stat label={mn.home.todayPlanned} value={data?.plannedToday ?? 0} tone="primary" />
+              <Stat label={mn.home.remainingToday} value={data?.remainingToday ?? 0} tone="warning" />
+            </View>
+
+            {/*
+              Completion requires check-in/check-out, which is Phase 3. Showing
+              "0 completed" would be a claim about the representative's day
+              rather than a statement about the software.
+            */}
+            <NotImplemented
+              what={mn.home.completedToday}
+              hint="Уулзалт эхлүүлэх, дуусгах үйлдэл 3-р шатанд нэмэгдэнэ."
+            />
+
+            <PrimaryButton
+              label={mn.home.goToToday}
+              onPress={() => router.push('/(tabs)/today')}
+            />
+          </Section>
+
+          <Section title={mn.week.thisWeek}>
+            <Card>
+              {data?.plan ? (
+                <>
+                  <View style={styles.planRow}>
+                    <Text style={styles.planLabel}>{mn.week.title}</Text>
+                    <Pill
+                      label={planStatusMn[data.plan.status]}
+                      tone={PLAN_TONE[data.plan.status]}
+                    />
+                  </View>
+                  {data.plan.status === 'rejected' && data.plan.review_comment ? (
+                    <Text style={styles.rejection}>{data.plan.review_comment}</Text>
+                  ) : null}
+                </>
+              ) : (
+                <Text style={styles.muted}>{mn.week.noPlan}</Text>
+              )}
+              <SecondaryButton
+                label={mn.week.title}
+                onPress={() => router.push('/(tabs)/week')}
+              />
+            </Card>
+          </Section>
+        </>
+      ) : null}
+
+      {isRep ? (
         <Section title={mn.home.myBrands}>
           <Card>
             {data?.myBrands.length ? (
@@ -87,18 +180,6 @@ export default function HomeScreen() {
         </Section>
       ) : null}
 
-      {/*
-        These tiles need weekly plans (Phase 2) and visits (Phase 3). Showing
-        a zero here would read as "you have nothing planned", which is a lie —
-        the feature simply does not exist yet.
-      */}
-      <Section title={mn.home.todayPlanned}>
-        <NotImplemented
-          what={mn.home.goToToday}
-          hint="Долоо хоногийн төлөвлөгөө ба өнөөдрийн маршрут 2-р шатанд нэмэгдэнэ."
-        />
-      </Section>
-
       <Section title={mn.home.weekKpi}>
         <NotImplemented
           what="KPI"
@@ -113,16 +194,29 @@ export default function HomeScreen() {
             onPress={() => router.push('/(tabs)/clinics')}
           />
           <SecondaryButton
-            label={mn.doctors.title}
-            onPress={() => router.push('/(tabs)/doctors')}
-          />
-          <SecondaryButton
             label={mn.brands.title}
             onPress={() => router.push('/(tabs)/brands')}
           />
         </View>
       </Section>
     </ScrollView>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: 'primary' | 'warning';
+}) {
+  return (
+    <View style={[styles.stat, tone === 'warning' && styles.statWarning]}>
+      <Text style={[styles.statValue, tone === 'warning' && styles.statValueWarning]}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
   );
 }
 
@@ -139,6 +233,31 @@ const styles = StyleSheet.create({
   greeting: { ...typography.title, color: colors.onPrimary },
   role: { ...typography.body, color: colors.primaryLight },
   date: { ...typography.caption, color: colors.primaryLight, marginTop: spacing.xs },
+
+  statRow: { flexDirection: 'row', gap: spacing.md },
+  stat: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    alignItems: 'center',
+    gap: 2,
+  },
+  statWarning: { borderColor: colors.warning },
+  statValue: { ...typography.display, color: colors.primary },
+  statValueWarning: { color: colors.warning },
+  statLabel: { ...typography.caption, color: colors.textMuted, textAlign: 'center' },
+
+  planRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  planLabel: { ...typography.bodyStrong, color: colors.text, flex: 1 },
+  rejection: { ...typography.caption, color: colors.danger, lineHeight: 19 },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   muted: { ...typography.body, color: colors.textMuted },

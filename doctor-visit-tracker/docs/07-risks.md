@@ -38,7 +38,7 @@ Severity: 🔴 high · 🟠 medium · 🟡 low
 
 | # | Risk | Severity | Mitigation |
 |---|---|---|---|
-| S1 | Anon key extracted from the mobile app and used to read all data | 🔴 | Every table has `ENABLE` + `FORCE ROW LEVEL SECURITY` with explicit policies; no permissive fallback. An automated test fails the build if any table lacks RLS. The anon key alone grants nothing without a valid JWT. |
+| S1 | Anon key extracted from the mobile app and used to read all data | 🔴 | Every table has `ENABLE ROW LEVEL SECURITY` with explicit policies; no permissive fallback. An automated test fails the build if any table lacks RLS. The anon key alone grants nothing without a valid JWT. |
 | S2 | Privilege escalation by a rep editing their own role | 🔴 | `app_user.role` is not updatable by non-admins (RLS + column-level guard in `fn_set_user_role`, which is `SECURITY DEFINER` and audits). |
 | S3 | Client-side-only permission checks | 🔴 | Hard architectural rule: UI may disable, server must reject. Tested via direct API calls in `tests/rls/`. |
 | S4 | SQL injection | 🟠 | No string-concatenated SQL. PostgREST parameterises; all functions use typed parameters and `search_path = ''`. |

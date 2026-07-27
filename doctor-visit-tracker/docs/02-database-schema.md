@@ -147,7 +147,7 @@ Exclusion constraint prevents two overlapping active rows for the same (rep, bra
 | `planned_time` time NULL | estimated start |
 | `objective` text | |
 | `status` `visit_status` default `planned` | |
-| `rescheduled_to_visit_id` uuid NULL | set when officially moved |
+| `rescheduled_to_planned_visit_id` uuid NULL | set when a manager officially moves the visit; points at the replacement planned_visit |
 | audit columns | |
 
 **Duplicate prevention:**
