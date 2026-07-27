@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "Эмч уулзалт",
+    "slug": "doctor-visit-tracker",
+    "scheme": "doctorvisittracker",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1B5E9B"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "mn.company.doctorvisittracker",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Уулзалт эхлүүлэх болон дуусгах үед таны байршлыг зөвхөн тухайн агшинд шалгана. Тасралтгүй хянахгүй.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "mn.company.doctorvisittracker",
+      "adaptiveIcon": {
+        "backgroundColor": "#1B5E9B",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
+      "blockedPermissions": [
+        "android.permission.ACCESS_BACKGROUND_LOCATION"
+      ],
+      "predictiveBackGestureEnabled": false,
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_AFTER_EAS_INIT"
+      }
+    }
+  }
+}
