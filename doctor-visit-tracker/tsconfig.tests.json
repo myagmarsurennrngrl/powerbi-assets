@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // In a test, `const [row] = await query(...)` is an assertion that the
+    // query returned a row. If it did not, the test fails loudly on the next
+    // line, which is the desired outcome — so the extra guard is pure noise here.
+    "noUncheckedIndexedAccess": false,
+    "types": ["node"]
+  },
+  "include": ["tests/**/*.ts", "src/**/*.ts", "scripts/**/*.mjs"],
+  "exclude": ["node_modules"]
+}

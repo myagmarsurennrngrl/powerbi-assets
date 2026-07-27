@@ -1,0 +1,13 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    // Catches "array[i] might not exist" bugs. Valuable in application code.
+    // Test files opt out via tsconfig.tests.json, where destructuring a known
+    // query result is deliberate and a wrong assumption fails the test anyway.
+    "noUncheckedIndexedAccess": true,
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["app/**/*.ts", "app/**/*.tsx", "src/**/*.ts", "src/**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  "exclude": ["node_modules", "tests"]
+}

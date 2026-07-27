@@ -1,0 +1,256 @@
+/**
+ * Screen 1 — Нэвтрэх (Login)
+ *
+ * Two steps: type the work email, then type the 6-digit code that arrives by
+ * email. No password to forget or leak.
+ *
+ * The domain restriction is checked here for a fast, clear message, but it is
+ * ENFORCED by the database (migration 0006). If this screen were bypassed
+ * entirely, an unapproved address still could not sign in.
+ */
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { AuthError, useSession } from '../src/lib/auth';
+import { getConfigError } from '../src/lib/supabase';
+import { LabelledInput, PrimaryButton, SecondaryButton } from '../src/components/ui';
+import { mn } from '../src/lib/i18n/mn';
+import { colors, radius, spacing, typography } from '../src/theme';
+
+const RESEND_COOLDOWN_SECONDS = 60;
+
+export default function LoginScreen() {
+  const { auth, refreshProfile } = useSession();
+
+  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+
+  const configMissing = getConfigError();
+
+  // Cooldown between "resend code" presses — a small client-side brake on top
+  // of Supabase's own server-side rate limiting.
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (cooldown <= 0) {
+      if (timer.current) clearInterval(timer.current);
+      return;
+    }
+    timer.current = setInterval(() => setCooldown((n) => Math.max(0, n - 1)), 1000);
+    return () => {
+      if (timer.current) clearInterval(timer.current);
+    };
+  }, [cooldown]);
+
+  const messageFor = (err: unknown): string => {
+    if (err instanceof AuthError) {
+      switch (err.code) {
+        case 'domain_not_allowed':
+          return mn.auth.errorDomainNotAllowed;
+        case 'invalid_code':
+          return mn.auth.errorInvalidCode;
+        case 'network':
+          return mn.auth.errorNetwork;
+        case 'rate_limited':
+          return mn.auth.errorGeneric;
+        default:
+          return mn.auth.errorGeneric;
+      }
+    }
+    return mn.auth.errorGeneric;
+  };
+
+  const handleRequestCode = useCallback(async () => {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setError(mn.auth.errorEmailRequired);
+      return;
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) {
+      setError(mn.auth.errorEmailInvalid);
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      await auth.requestCode(trimmed);
+      setStep('code');
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+    } catch (err) {
+      setError(messageFor(err));
+    } finally {
+      setBusy(false);
+    }
+  }, [auth, email]);
+
+  const handleVerify = useCallback(async () => {
+    if (!code.trim()) {
+      setError(mn.auth.errorCodeRequired);
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      await auth.verifyCode(email.trim(), code.trim());
+      // The root layout reacts to the session change; refreshing the profile
+      // makes the transition immediate rather than waiting for the listener.
+      await refreshProfile();
+    } catch (err) {
+      setError(messageFor(err));
+    } finally {
+      setBusy(false);
+    }
+  }, [auth, code, email, refreshProfile]);
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.flex}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <Text style={styles.logo}>🩺</Text>
+            <Text style={styles.appName}>{mn.app.name}</Text>
+            <Text style={styles.subtitle}>{mn.auth.subtitle}</Text>
+          </View>
+
+          {configMissing ? (
+            <View style={styles.configError}>
+              <Text style={styles.configErrorTitle}>{mn.errors.configMissing}</Text>
+              <Text style={styles.configErrorDetail}>{configMissing.join(', ')}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.card}>
+            {step === 'email' ? (
+              <>
+                <LabelledInput
+                  label={mn.auth.emailLabel}
+                  placeholder={mn.auth.emailPlaceholder}
+                  value={email}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    setError(null);
+                  }}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="email"
+                  keyboardType="email-address"
+                  inputMode="email"
+                  textContentType="emailAddress"
+                  editable={!busy}
+                  error={error}
+                  onSubmitEditing={() => void handleRequestCode()}
+                  returnKeyType="send"
+                />
+                <PrimaryButton
+                  label={busy ? mn.auth.sendingCode : mn.auth.sendCode}
+                  onPress={() => void handleRequestCode()}
+                  busy={busy}
+                  disabled={!!configMissing}
+                />
+              </>
+            ) : (
+              <>
+                <Text style={styles.sentTo}>{mn.auth.codeSentTo(email.trim())}</Text>
+                <LabelledInput
+                  label={mn.auth.codeLabel}
+                  placeholder={mn.auth.codePlaceholder}
+                  value={code}
+                  onChangeText={(text) => {
+                    // Digits only — the code is always six numbers.
+                    setCode(text.replace(/\D/g, '').slice(0, 6));
+                    setError(null);
+                  }}
+                  keyboardType="number-pad"
+                  inputMode="numeric"
+                  textContentType="oneTimeCode"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  editable={!busy}
+                  error={error}
+                  style={styles.codeInput}
+                  onSubmitEditing={() => void handleVerify()}
+                  returnKeyType="go"
+                />
+                <PrimaryButton
+                  label={busy ? mn.auth.verifying : mn.auth.verify}
+                  onPress={() => void handleVerify()}
+                  busy={busy}
+                />
+                <SecondaryButton
+                  label={cooldown > 0 ? mn.auth.resendIn(cooldown) : mn.auth.resendCode}
+                  onPress={() => void handleRequestCode()}
+                  disabled={busy || cooldown > 0}
+                />
+                <SecondaryButton
+                  label={mn.auth.changeEmail}
+                  onPress={() => {
+                    setStep('email');
+                    setCode('');
+                    setError(null);
+                  }}
+                  disabled={busy}
+                />
+              </>
+            )}
+          </View>
+
+          <Text style={styles.footnote}>{mn.settings.locationPolicy}</Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.primary },
+  flex: { flex: 1 },
+  content: { flexGrow: 1, padding: spacing.lg, gap: spacing.xl, justifyContent: 'center' },
+
+  header: { alignItems: 'center', gap: spacing.sm },
+  logo: { fontSize: 56 },
+  appName: { ...typography.display, color: colors.onPrimary, textAlign: 'center' },
+  subtitle: { ...typography.body, color: colors.primaryLight, textAlign: 'center' },
+
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  sentTo: { ...typography.body, color: colors.textMuted },
+  codeInput: { fontSize: 26, letterSpacing: 8, textAlign: 'center' },
+
+  configError: {
+    backgroundColor: colors.dangerBg,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  configErrorTitle: { ...typography.bodyStrong, color: colors.danger },
+  configErrorDetail: { ...typography.caption, color: colors.danger },
+
+  footnote: {
+    ...typography.caption,
+    color: colors.primaryLight,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+});

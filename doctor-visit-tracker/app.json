@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "Эмчийн уулзалтын бүртгэл",
+    "slug": "doctor-visit-tracker",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "doctorvisittracker",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F766E"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "mn.monos.doctorvisittracker",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Уулзалт эхлүүлэх болон дуусгах үед та эмнэлгийн ойролцоо байгаа эсэхийг шалгахад л байршлыг ашиглана. Апп таны байршлыг байнга хянахгүй."
+      }
+    },
+    "android": {
+      "package": "mn.monos.doctorvisittracker",
+      "adaptiveIcon": {
+        "backgroundColor": "#0F766E",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+      "blockedPermissions": ["ACCESS_BACKGROUND_LOCATION", "RECORD_AUDIO"],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": { "favicon": "./assets/favicon.png", "bundler": "metro" },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-sqlite",
+      ["expo-splash-screen", { "backgroundColor": "#0F766E", "image": "./assets/splash-icon.png", "imageWidth": 180 }],
+      ["expo-location", {
+        "locationWhenInUsePermission": "Уулзалт эхлүүлэх болон дуусгах үед та эмнэлгийн ойролцоо байгаа эсэхийг шалгахад л байршлыг ашиглана. Апп таны байршлыг байнга хянахгүй.",
+        "isAndroidBackgroundLocationEnabled": false,
+        "isIosBackgroundLocationEnabled": false
+      }]
+    ],
+    "experiments": { "typedRoutes": true }
+  }
+}
