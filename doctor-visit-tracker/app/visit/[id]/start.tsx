@@ -34,11 +34,13 @@ import {
   SecondaryButton,
 } from '../../../src/components/ui';
 import { mn } from '../../../src/lib/i18n/mn';
+import { useSync } from '../../../src/lib/offline/SyncProvider';
 import { colors, radius, spacing, typography } from '../../../src/theme';
 
 export default function StartVisitScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { online } = useSync();
 
   const [visit, setVisit] = useState<PlannedVisitDetail | null>(null);
   const [reading, setReading] = useState<LocationReading | null>(null);
@@ -248,6 +250,16 @@ export default function StartVisitScreen() {
         </View>
       ) : null}
 
+      {/* Check-in is deliberately NOT queued offline. Its value is that the
+          SERVER measured the distance and stamped the clock; a queued one has
+          neither. Saying so beats a button that fails without explanation. */}
+      {!online ? (
+        <View style={styles.connectionNotice}>
+          <Text style={styles.connectionNoticeTitle}>{mn.sync.needsConnection}</Text>
+          <Text style={styles.connectionNoticeText}>{mn.sync.needsConnectionWhy}</Text>
+        </View>
+      ) : null}
+
       <Text style={styles.notice}>{mn.startVisit.locationNotice}</Text>
     </ScrollView>
   );
@@ -293,6 +305,15 @@ function Condition({ label, ok }: { label: string; ok?: boolean }) {
 }
 
 const styles = StyleSheet.create({
+  connectionNotice: {
+    backgroundColor: colors.warningBg,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: 4,
+  },
+  connectionNoticeTitle: { ...typography.bodyStrong, color: colors.warning },
+  connectionNoticeText: { ...typography.caption, color: colors.warning, lineHeight: 18 },
+
   screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl * 2 },
 

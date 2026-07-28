@@ -21,7 +21,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Crypto from 'expo-crypto';
 import Constants from 'expo-constants';
 import { fetchPlannedVisit, type PlannedVisitDetail } from '../../../src/data/planning';
-import { requestException } from '../../../src/data/kpi';
+import { requestExceptionOffline } from '../../../src/data/offlineWrites';
 import { readCurrentPosition, type LocationReading } from '../../../src/lib/location';
 import { formatDistanceMn, haversineMetres } from '../../../src/domain/geo';
 import {
@@ -90,7 +90,7 @@ export default function ExceptionRequestScreen() {
     setSubmitting(true);
     setFormError(null);
 
-    const result = await requestException({
+    const result = await requestExceptionOffline({
       plannedVisitId,
       reason,
       explanation: explanation.trim(),
@@ -109,7 +109,10 @@ export default function ExceptionRequestScreen() {
       return;
     }
 
-    Alert.alert(mn.exception.title, mn.exception.submitted);
+    Alert.alert(
+      mn.exception.title,
+      result.state === 'queued' ? mn.exception.submittedQueued : mn.exception.submitted,
+    );
     router.replace('/(tabs)/today');
   };
 

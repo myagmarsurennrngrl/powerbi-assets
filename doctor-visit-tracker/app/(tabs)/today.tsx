@@ -22,10 +22,12 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { fetchRoute, type RouteStop } from '../../src/data/planning';
+import type { RouteStop } from '../../src/data/planning';
+import { fetchRouteCached } from '../../src/data/offlineReads';
 import { readCurrentPosition, type LocationFailure } from '../../src/lib/location';
 import { formatDistanceMn, haversineMetres } from '../../src/domain/geo';
 import {
+  CachedNotice,
   EmptyState,
   ErrorState,
   LoadingState,
@@ -61,14 +63,21 @@ export default function TodayScreen() {
 
   const [origin, setOrigin] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locating, setLocating] = useState(false);
+  /** Set when the route on screen came from the cache rather than the server. */
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
+  const [cacheExpired, setCacheExpired] = useState(false);
 
   const load = useCallback(async (mode: 'initial' | 'refresh') => {
     if (mode === 'refresh') setRefreshing(true);
     else setLoading(true);
 
-    const result = await fetchRoute();
+    // Cache-backed: in a hospital basement this still shows who you came to
+    // see. The banner below says how old it is — never silently.
+    const result = await fetchRouteCached();
     setStops(result.data);
     setError(result.error);
+    setCachedAt(result.fromCache ? result.fetchedAt : null);
+    setCacheExpired(result.freshness === 'expired');
 
     setLoading(false);
     setRefreshing(false);
@@ -139,6 +148,9 @@ export default function TodayScreen() {
       ListHeaderComponent={
         <View style={styles.header}>
           <Text style={styles.date}>{formatDateLongMn(new Date())}</Text>
+          {cachedAt !== null ? (
+            <CachedNotice fetchedAt={cachedAt} expired={cacheExpired} />
+          ) : null}
           <Text style={styles.summary}>
             {mn.today.summary(completedCount, stops?.length ?? 0)}
           </Text>

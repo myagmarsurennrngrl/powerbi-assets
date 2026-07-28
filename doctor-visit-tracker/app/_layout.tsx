@@ -10,8 +10,9 @@ import React, { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SessionProvider, useSession } from '../src/lib/auth';
+import { SyncProvider, useSync } from '../src/lib/offline/SyncProvider';
 import { LoadingState, PrimaryButton } from '../src/components/ui';
 import { mn } from '../src/lib/i18n/mn';
 import { colors, spacing, typography } from '../src/theme';
@@ -56,8 +57,12 @@ function RootNavigator() {
   }
 
   return (
-    <Stack
-      screenOptions={{
+    <View style={styles.root}>
+      {/* One bar for the whole app. A representative in a basement should learn
+          that from the interface, not from a request that quietly failed. */}
+      <ConnectionBar />
+      <Stack
+        screenOptions={{
         headerStyle: { backgroundColor: colors.primary },
         headerTintColor: colors.onPrimary,
         headerTitleStyle: { fontWeight: '700' },
@@ -85,13 +90,45 @@ function RootNavigator() {
       <Stack.Screen name="visit/unplanned" options={{ title: mn.unplanned.title }} />
       <Stack.Screen name="report/[visitId]" options={{ title: mn.completeVisit.title }} />
       <Stack.Screen name="audit" options={{ title: mn.audit.title }} />
+      <Stack.Screen name="sync" options={{ title: mn.sync.title }} />
       <Stack.Screen name="route/[date]" options={{ title: mn.week.title }} />
       <Stack.Screen name="admin/users" options={{ title: mn.admin.usersTitle }} />
       <Stack.Screen name="admin/user/[id]" options={{ title: mn.admin.editUser }} />
       <Stack.Screen name="admin/master-data" options={{ title: mn.admin.masterDataTitle }} />
       <Stack.Screen name="admin/clinic/[id]" options={{ title: mn.admin.editClinic }} />
-      <Stack.Screen name="admin/doctor/[id]" options={{ title: mn.admin.editDoctor }} />
-    </Stack>
+        <Stack.Screen name="admin/doctor/[id]" options={{ title: mn.admin.editDoctor }} />
+      </Stack>
+    </View>
+  );
+}
+
+/**
+ * Shown only when there is something to say: no connection, or work still
+ * waiting to be sent. A permanent "you are online" bar would be noise, and
+ * noise is what people learn to ignore.
+ */
+function ConnectionBar() {
+  const { online, summary } = useSync();
+  const router = useRouter();
+
+  if (online && summary.total === 0) return null;
+
+  const blocked = summary.blocked > 0;
+  const label = !online
+    ? mn.sync.offlineBanner
+    : blocked
+      ? `${mn.sync.blockedTitle} · ${summary.blocked}`
+      : mn.sync.queueCount(summary.total);
+
+  return (
+    <Pressable
+      onPress={() => router.push('/sync')}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={[styles.bar, blocked ? styles.barDanger : styles.barWarning]}
+    >
+      <Text style={[styles.barText, blocked && styles.barTextDanger]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -100,13 +137,25 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <StatusBar style="light" />
       <SessionProvider>
-        <RootNavigator />
+        {/* Inside SessionProvider: the queue is only meaningful for a signed-in
+            person, and purging on sign-out needs both. */}
+        <SyncProvider>
+          <RootNavigator />
+        </SyncProvider>
       </SessionProvider>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
+
+  bar: { paddingHorizontal: spacing.md, paddingVertical: 6, alignItems: 'center' },
+  barWarning: { backgroundColor: colors.warningBg },
+  barDanger: { backgroundColor: colors.dangerBg },
+  barText: { ...typography.caption, color: colors.warning, fontWeight: '600' },
+  barTextDanger: { color: colors.danger },
+
   center: {
     flex: 1,
     alignItems: 'center',

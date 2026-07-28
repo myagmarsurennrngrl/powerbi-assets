@@ -6,14 +6,17 @@
  * audio recording does not exist. Transparency is the mitigation for the
  * biggest risk in this project (docs/07-risks.md P1).
  */
-import React from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { useSession } from '../../src/lib/auth';
+import { useSync } from '../../src/lib/offline/SyncProvider';
+import { storageStats } from '../../src/lib/offline/db';
+import { describeAgeMn } from '../../src/domain/cachePolicy';
 import {
   Card,
   Field,
-  NotImplemented,
   Pill,
   PrimaryButton,
   SecondaryButton,
@@ -25,11 +28,63 @@ import { colors, spacing, typography } from '../../src/theme';
 
 export default function SettingsScreen() {
   const { profile, signOut } = useSession();
+  const { online, summary, syncing, sync, purge } = useSync();
+  const router = useRouter();
+  const [stats, setStats] = useState<{ cacheRows: number; outboxRows: number } | null>(null);
 
+  const loadStats = useCallback(async () => {
+    try {
+      setStats(await storageStats());
+    } catch {
+      setStats(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadStats();
+  }, [loadStats, summary.total]);
+
+  /**
+   * Signing out wipes the local database, including anything still queued.
+   * Warning first is the difference between "I signed out" and "I lost six
+   * visit reports and never found out".
+   */
   const confirmSignOut = () => {
-    Alert.alert(mn.auth.signOut, mn.auth.signOutConfirm, [
+    const message =
+      summary.total > 0
+        ? `${mn.sync.signOutWithQueue(summary.total)}\n\n${mn.auth.signOutConfirm}`
+        : mn.auth.signOutConfirm;
+
+    Alert.alert(mn.auth.signOut, message, [
       { text: mn.common.cancel, style: 'cancel' },
-      { text: mn.auth.signOut, style: 'destructive', onPress: () => void signOut() },
+      {
+        text: mn.auth.signOut,
+        style: 'destructive',
+        onPress: async () => {
+          await purge();
+          await signOut();
+        },
+      },
+    ]);
+  };
+
+  const confirmClearCache = () => {
+    if (summary.total > 0) {
+      // Clearing the cache also clears the outbox — they are one database.
+      Alert.alert(mn.settings.clearCache, mn.sync.signOutWithQueue(summary.total));
+      return;
+    }
+    Alert.alert(mn.settings.clearCache, mn.settings.clearCacheConfirm, [
+      { text: mn.common.cancel, style: 'cancel' },
+      {
+        text: mn.settings.clearCache,
+        style: 'destructive',
+        onPress: async () => {
+          await purge();
+          await loadStats();
+          Alert.alert(mn.settings.clearCache, mn.sync.clearedCache);
+        },
+      },
     ]);
   };
 
@@ -83,10 +138,37 @@ export default function SettingsScreen() {
       </Section>
 
       <Section title={mn.sync.title}>
-        <NotImplemented
-          what={mn.sync.title}
-          hint="Офлайн ажиллагаа ба синк 7-р шатанд нэмэгдэнэ."
-        />
+        <Card>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>
+              {online ? mn.sync.online : mn.sync.offline}
+            </Text>
+            <Pill
+              label={
+                summary.total === 0 ? mn.sync.allSynced : mn.sync.queueCount(summary.total)
+              }
+              tone={summary.blocked > 0 ? 'danger' : summary.total > 0 ? 'warning' : 'success'}
+            />
+          </View>
+
+          {summary.oldestPendingAt !== null ? (
+            <Text style={styles.caption}>
+              {mn.sync.oldestPending(describeAgeMn(summary.oldestPendingAt, Date.now()))}
+            </Text>
+          ) : null}
+
+          <Text style={styles.caption}>
+            {stats ? mn.sync.storageRows(stats.cacheRows, stats.outboxRows) : mn.common.loading}
+          </Text>
+
+          <SecondaryButton
+            label={syncing ? mn.sync.syncing : mn.sync.syncNow}
+            onPress={() => void sync()}
+            disabled={syncing || summary.total === 0}
+          />
+          <SecondaryButton label={mn.sync.title} onPress={() => router.push('/sync')} />
+          <SecondaryButton label={mn.settings.clearCache} onPress={confirmClearCache} />
+        </Card>
       </Section>
 
       <View style={styles.actions}>

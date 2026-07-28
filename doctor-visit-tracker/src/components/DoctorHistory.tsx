@@ -14,7 +14,6 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSession } from '../lib/auth';
 import {
-  addAddendum,
   fetchAddenda,
   fetchDoctorHistory,
   type Addendum,
@@ -32,6 +31,7 @@ import {
   PrimaryButton,
   SecondaryButton,
 } from './ui';
+import { addAddendumOffline } from '../data/offlineWrites';
 import { mn } from '../lib/i18n/mn';
 import {
   interestLevelMn,
@@ -136,7 +136,11 @@ export function DoctorHistory({ doctorId }: { doctorId: string }) {
     }
 
     setSavingAddendum(true);
-    const result = await addAddendum(addendumFor, addendumText.trim(), addendumReason.trim());
+    const result = await addAddendumOffline(
+      addendumFor,
+      addendumText.trim(),
+      addendumReason.trim(),
+    );
     setSavingAddendum(false);
 
     if (result.error) {
@@ -147,7 +151,10 @@ export function DoctorHistory({ doctorId }: { doctorId: string }) {
     setAddendumFor(null);
     setAddendumText('');
     setAddendumReason('');
-    Alert.alert(mn.history.addendumTitle, mn.history.addendumSaved);
+    Alert.alert(
+      mn.history.addendumTitle,
+      result.state === 'queued' ? mn.history.addendumQueued : mn.history.addendumSaved,
+    );
     reload();
   };
 

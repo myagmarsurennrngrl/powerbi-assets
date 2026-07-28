@@ -26,10 +26,12 @@ import {
 } from '../../../src/components/ui';
 import { mn } from '../../../src/lib/i18n/mn';
 import { formatDurationMn, formatTimeMn } from '../../../src/lib/datetime';
+import { useSync } from '../../../src/lib/offline/SyncProvider';
 import { colors, radius, spacing, typography } from '../../../src/theme';
 
 export default function ActiveVisitScreen() {
   const router = useRouter();
+  const { online } = useSync();
 
   const [visit, setVisit] = useState<ActiveVisit | null>(null);
   const [loading, setLoading] = useState(true);
@@ -195,6 +197,16 @@ export default function ActiveVisitScreen() {
         />
       )}
 
+      {/* Same reasoning as check-in: the check-out time and location are the
+          server's measurement, so they cannot be queued. The visit simply stays
+          open until there is a connection, which is the honest outcome. */}
+      {!online ? (
+        <View style={styles.connectionNotice}>
+          <Text style={styles.connectionNoticeTitle}>{mn.sync.needsConnection}</Text>
+          <Text style={styles.connectionNoticeText}>{mn.sync.needsConnectionWhy}</Text>
+        </View>
+      ) : null}
+
       <Text style={styles.notice}>{mn.startVisit.locationNotice}</Text>
     </ScrollView>
   );
@@ -210,6 +222,15 @@ function formatClock(totalSeconds: number): string {
 }
 
 const styles = StyleSheet.create({
+  connectionNotice: {
+    backgroundColor: colors.warningBg,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: 4,
+  },
+  connectionNoticeTitle: { ...typography.bodyStrong, color: colors.warning },
+  connectionNoticeText: { ...typography.caption, color: colors.warning, lineHeight: 18 },
+
   screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
 

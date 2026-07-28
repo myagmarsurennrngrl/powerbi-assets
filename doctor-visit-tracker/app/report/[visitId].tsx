@@ -26,14 +26,16 @@ import {
   fetchCompletionIssues,
   fetchVisitReport,
   fetchVisitSelections,
-  saveVisitDraft,
-  setVisitBrands,
-  setVisitDoctors,
-  setVisitProducts,
-  submitVisitReport,
   type CompletionIssue,
   type VisitReport,
 } from '../../src/data/completion';
+import {
+  saveDraftOffline,
+  setBrandsOffline,
+  setDoctorsOffline,
+  setProductsOffline,
+  submitReportOffline,
+} from '../../src/data/offlineWrites';
 import { fetchDoctorOptionsForClinic } from '../../src/data/planning';
 import { fetchBrands, fetchMyBrandAssignments, fetchProducts } from '../../src/data/repositories';
 import type { Brand, Product } from '../../src/data/types';
@@ -82,6 +84,8 @@ export default function CompleteVisitScreen() {
   const [issues, setIssues] = useState<CompletionIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  /** True when the last save went to the on-device queue instead of the server. */
+  const [queued, setQueued] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -138,9 +142,14 @@ export default function CompleteVisitScreen() {
       saveTimer.current = setTimeout(async () => {
         if (!visitId) return;
         setSaving(true);
-        await saveVisitDraft(visitId, fields as never);
-        const refreshed = await fetchCompletionIssues(visitId);
-        setIssues(refreshed.data ?? []);
+        const saved = await saveDraftOffline(visitId, fields as never);
+        setQueued(saved.state === 'queued');
+        // The completeness rules live on the server. Offline there is nothing
+        // to ask, so the last known list stays on screen rather than clearing.
+        if (saved.state !== 'queued') {
+          const refreshed = await fetchCompletionIssues(visitId);
+          setIssues(refreshed.data ?? []);
+        }
         setSaving(false);
       }, 700);
     },
@@ -153,9 +162,12 @@ export default function CompleteVisitScreen() {
       : [...doctorIds, doctorId];
     setDoctorIds(next);
     if (visitId) {
-      await setVisitDoctors(visitId, next);
-      const refreshed = await fetchCompletionIssues(visitId);
-      setIssues(refreshed.data ?? []);
+      const saved = await setDoctorsOffline(visitId, next);
+      setQueued(saved.state === 'queued');
+      if (saved.state !== 'queued') {
+        const refreshed = await fetchCompletionIssues(visitId);
+        setIssues(refreshed.data ?? []);
+      }
     }
   };
 
@@ -165,7 +177,8 @@ export default function CompleteVisitScreen() {
       : [...brandIds, brandId];
     setBrandIds(next);
     if (visitId) {
-      await setVisitBrands(visitId, next);
+      const saved = await setBrandsOffline(visitId, next);
+      setQueued(saved.state === 'queued');
       // Dropping a brand must drop its products too, or the report claims a
       // product was discussed under a brand that was not.
       const stillValid = productIds.filter((pid) =>
@@ -173,10 +186,12 @@ export default function CompleteVisitScreen() {
       );
       if (stillValid.length !== productIds.length) {
         setProductIds(stillValid);
-        await setVisitProducts(visitId, stillValid);
+        await setProductsOffline(visitId, stillValid);
       }
-      const refreshed = await fetchCompletionIssues(visitId);
-      setIssues(refreshed.data ?? []);
+      if (saved.state !== 'queued') {
+        const refreshed = await fetchCompletionIssues(visitId);
+        setIssues(refreshed.data ?? []);
+      }
     }
   };
 
@@ -185,7 +200,10 @@ export default function CompleteVisitScreen() {
       ? productIds.filter((x) => x !== productId)
       : [...productIds, productId];
     setProductIds(next);
-    if (visitId) await setVisitProducts(visitId, next);
+    if (visitId) {
+      const saved = await setProductsOffline(visitId, next);
+      setQueued(saved.state === 'queued');
+    }
   };
 
   const confirmSubmit = () => {
@@ -199,7 +217,7 @@ export default function CompleteVisitScreen() {
           // Flush any pending autosave before submitting.
           if (saveTimer.current) clearTimeout(saveTimer.current);
           if (report) {
-            await saveVisitDraft(visitId, {
+            await saveDraftOffline(visitId, {
               objective: report.objective,
               meeting_status: report.meeting_status,
               outcome: report.outcome,
@@ -214,7 +232,7 @@ export default function CompleteVisitScreen() {
             } as never);
           }
 
-          const result = await submitVisitReport(visitId);
+          const result = await submitReportOffline(visitId);
           setSubmitting(false);
 
           if (result.error) {
@@ -224,7 +242,15 @@ export default function CompleteVisitScreen() {
             return;
           }
 
-          Alert.alert(mn.completeVisit.title, mn.completeVisit.submitted);
+          // A queued submission is NOT a submitted one, and saying so is the
+          // difference between a representative who checks the sync screen and
+          // one who finds out a week later that nothing arrived.
+          Alert.alert(
+            mn.completeVisit.title,
+            result.state === 'queued'
+              ? mn.completeVisit.submittedQueued
+              : mn.completeVisit.submitted,
+          );
           router.replace('/(tabs)/today');
         },
       },
@@ -453,8 +479,12 @@ export default function CompleteVisitScreen() {
         </View>
       ) : null}
 
-      <Text style={styles.autosave}>
-        {saving ? mn.completeVisit.savingDraft : mn.completeVisit.draftSaved}
+      <Text style={[styles.autosave, queued && styles.autosaveQueued]}>
+        {saving
+          ? mn.completeVisit.savingDraft
+          : queued
+            ? mn.completeVisit.draftQueued
+            : mn.completeVisit.draftSaved}
       </Text>
 
       <PrimaryButton
@@ -537,5 +567,6 @@ const styles = StyleSheet.create({
   issuesTitle: { ...typography.bodyStrong, color: colors.warning },
   issueItem: { ...typography.body, color: colors.warning },
 
+  autosaveQueued: { color: colors.warning },
   autosave: { ...typography.caption, color: colors.textFaint, textAlign: 'center' },
 });

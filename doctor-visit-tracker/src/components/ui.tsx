@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { colors, radius, shadow, spacing, touch, typography } from '../theme';
 import { mn } from '../lib/i18n/mn';
+import { describeAgeMn } from '../domain/cachePolicy';
 
 // -----------------------------------------------------------------------------
 // Text
@@ -295,6 +296,30 @@ export function OfflineBanner() {
 }
 
 /**
+ * How old the data on this screen is.
+ *
+ * Shown whenever a read came from the on-device cache. A screen that displays
+ * yesterday's route without saying so sends someone to the wrong clinic, so
+ * the age is never optional once the data is not live.
+ */
+export function CachedNotice({
+  fetchedAt,
+  expired = false,
+}: {
+  fetchedAt: number;
+  expired?: boolean;
+}) {
+  return (
+    <View style={[styles.cachedNotice, expired && styles.cachedNoticeOld]}>
+      <Text style={[styles.cachedText, expired && styles.cachedTextOld]}>
+        {mn.sync.cachedAt(describeAgeMn(fetchedAt, Date.now()))}
+        {expired ? ` · ${mn.sync.cachedOld}` : ''}
+      </Text>
+    </View>
+  );
+}
+
+/**
  * An honest placeholder. Used wherever a screen or control is visible but the
  * feature is not built yet — never a button that silently does nothing.
  */
@@ -430,6 +455,16 @@ const styles = StyleSheet.create({
   stateEmoji: { fontSize: 34 },
   stateText: { ...typography.body, color: colors.textMuted, textAlign: 'center' },
   stateAction: { minWidth: 160 },
+
+  cachedNotice: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  cachedNoticeOld: { backgroundColor: colors.warningBg },
+  cachedText: { ...typography.caption, color: colors.textMuted, lineHeight: 18 },
+  cachedTextOld: { color: colors.warning },
 
   offlineBanner: {
     backgroundColor: colors.warningBg,

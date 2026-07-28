@@ -25,6 +25,7 @@ import { useRouter } from 'expo-router';
 import * as Crypto from 'expo-crypto';
 import Constants from 'expo-constants';
 import { useSession } from '../../src/lib/auth';
+import { useSync } from '../../src/lib/offline/SyncProvider';
 import {
   checkUnplannedEligibility,
   fetchNearbyClinics,
@@ -67,6 +68,7 @@ function locationMessage(failure: LocationFailure): string {
 export default function UnplannedVisitScreen() {
   const router = useRouter();
   const { isRep } = useSession();
+  const { online } = useSync();
 
   const [reading, setReading] = useState<LocationReading | null>(null);
   const [clinics, setClinics] = useState<NearbyClinic[]>([]);
@@ -189,6 +191,13 @@ export default function UnplannedVisitScreen() {
 
       {error ? <ErrorState message={error} /> : null}
 
+      {!online ? (
+        <Card style={styles.connectionNotice}>
+          <Text style={styles.connectionNoticeTitle}>{mn.sync.needsConnection}</Text>
+          <Text style={styles.connectionNoticeText}>{mn.sync.needsConnectionWhy}</Text>
+        </Card>
+      ) : null}
+
       {locationError ? (
         <Card>
           <Text style={styles.locationError}>{locationError}</Text>
@@ -302,6 +311,9 @@ const styles = StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
 
   intro: { ...typography.body, color: colors.text, lineHeight: 21 },
+  connectionNotice: { borderColor: colors.warning, borderWidth: 1 },
+  connectionNoticeTitle: { ...typography.bodyStrong, color: colors.warning },
+  connectionNoticeText: { ...typography.caption, color: colors.warning, lineHeight: 18 },
   kpiNote: { backgroundColor: colors.infoBg, borderRadius: radius.md, padding: spacing.md },
   kpiNoteText: { ...typography.caption, color: colors.info, lineHeight: 18 },
 
