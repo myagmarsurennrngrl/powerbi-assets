@@ -56,18 +56,29 @@ function clean(value: string): string {
  * edit. See tests/domain/env.test.ts.
  */
 function describeUrlProblem(url: string): string | null {
+  // The literal-text check comes FIRST, and it is not redundant.
+  //
+  // `new URL('https:abc.supabase.co')` — no slashes — succeeds, and reports
+  // hostname 'abc.supabase.co'. The WHATWG parser repairs the missing slashes
+  // for special schemes. So a URL object cannot tell us whether the text in
+  // the file was written correctly; only the text can.
+  //
+  // supabase-js does not repair it. It tests the raw string against a regex
+  // that requires '://' and throws
+  //     Invalid supabaseUrl: Must be a valid HTTP or HTTPS URL.
+  // This is the exact line that produced that error in the field:
+  //     EXPO_PUBLIC_SUPABASE_URL=https:vhkqjpakvuearcjmycsd.supabase.co
+  if (!/^https?:\/\//i.test(url)) {
+    return `EXPO_PUBLIC_SUPABASE_URL нь https:// -ээр эхлэх ёстой. Одоо: "${url}"`;
+  }
+
   let parsed: URL;
   try {
     parsed = new URL(url);
   } catch {
-    return url.includes('://')
-      ? `EXPO_PUBLIC_SUPABASE_URL хаяг буруу байна: "${url}"`
-      : `EXPO_PUBLIC_SUPABASE_URL нь https:// -ээр эхлэх ёстой. Одоо: "${url}"`;
+    return `EXPO_PUBLIC_SUPABASE_URL хаяг буруу байна: "${url}"`;
   }
 
-  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-    return `EXPO_PUBLIC_SUPABASE_URL нь https:// -ээр эхлэх ёстой. Одоо: "${url}"`;
-  }
   if (!parsed.hostname.includes('.')) {
     return `EXPO_PUBLIC_SUPABASE_URL бүрэн бус байна: "${url}"`;
   }
@@ -117,7 +128,17 @@ export function readEnv(): EnvResult {
     };
   }
 
-  return { ok: true, env: { supabaseUrl, supabaseAnonKey }, missing: [], problem: null };
+  // A trailing slash is harmless to look at and produces doubled slashes in
+  // every request path. Copying the address out of the browser's URL bar adds
+  // one, so this is common rather than exotic.
+  const normalisedUrl = supabaseUrl.replace(/\/+$/, '');
+
+  return {
+    ok: true,
+    env: { supabaseUrl: normalisedUrl, supabaseAnonKey },
+    missing: [],
+    problem: null,
+  };
 }
 
 /**

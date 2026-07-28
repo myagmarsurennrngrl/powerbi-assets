@@ -83,6 +83,12 @@ describe('mistakes made when editing .env by hand', () => {
     const result = await readWith(`${GOOD_URL}\r`, GOOD_KEY);
     expect(result.env?.supabaseUrl).toBe(GOOD_URL);
   });
+
+  it('drops a trailing slash, which copying from the address bar adds', async () => {
+    const result = await readWith(`${GOOD_URL}/`, GOOD_KEY);
+    expect(result.ok).toBe(true);
+    expect(result.env?.supabaseUrl).toBe(GOOD_URL);
+  });
 });
 
 describe('values that are present but wrong', () => {
@@ -96,6 +102,35 @@ describe('values that are present but wrong', () => {
 
   it('rejects a non-http scheme', async () => {
     const result = await readWith('postgresql://db.abc.supabase.co:5432', GOOD_KEY);
+    expect(result.ok).toBe(false);
+    expect(result.problem).toContain('https://');
+  });
+
+  /**
+   * The real one. Typed by hand, missing both slashes:
+   *
+   *     EXPO_PUBLIC_SUPABASE_URL=https:vhkqjpakvuearcjmycsd.supabase.co
+   *
+   * `new URL()` accepts it and repairs it — the WHATWG parser fills in the
+   * slashes for special schemes and reports a perfectly good hostname. So the
+   * first version of this validation passed it straight through, and it threw
+   * inside supabase-js instead, which checks the raw text against a regex.
+   *
+   * The lesson: validate the text in the file, not a URL object built from it.
+   */
+  it('rejects https: with no slashes — new URL() silently repairs this one', async () => {
+    const typo = 'https:vhkqjpakvuearcjmycsd.supabase.co';
+    // Guard the premise, so this test still means something if the parser changes.
+    expect(new URL(typo).hostname).toBe('vhkqjpakvuearcjmycsd.supabase.co');
+
+    const result = await readWith(typo, GOOD_KEY);
+    expect(result.ok).toBe(false);
+    expect(result.problem).toContain('https://');
+    expect(result.problem).toContain(typo);
+  });
+
+  it('rejects https:/ with one slash', async () => {
+    const result = await readWith('https:/abcdefghijklm.supabase.co', GOOD_KEY);
     expect(result.ok).toBe(false);
     expect(result.problem).toContain('https://');
   });

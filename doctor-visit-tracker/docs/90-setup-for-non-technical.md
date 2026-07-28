@@ -353,14 +353,21 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...(very long)...
 
 Leave every other line alone. Then save and close.
 
-**Four things that quietly break it:**
+**Five things that quietly break it:**
 
 | Correct | Wrong |
 |---|---|
+| `https://abcdefgh.supabase.co` | `https:abcdefgh.supabase.co` — **two slashes after `https:`** |
 | `EXPO_PUBLIC_SUPABASE_URL=https://...` | `EXPO_PUBLIC_SUPABASE_URL = https://...` — no spaces around `=` |
 | `...ANON_KEY=eyJhbG...` | `...ANON_KEY="eyJhbG..."` — no quotation marks |
 | The key on one unbroken line | The key wrapped onto two lines |
 | Nothing after the value | A stray space at the end of the line |
+
+The missing-slashes one is the easiest to look straight past, and it has
+happened here. `https:abcdefgh.supabase.co` reads correctly to a human, and the
+app now names it precisely, but before that fix it appeared as a red screen
+saying `Invalid supabaseUrl` with a stack trace pointing at a source file — no
+hint that the problem was in `.env` at all.
 
 Always use the **Copy** button in Supabase. Typing these by hand does not work.
 
