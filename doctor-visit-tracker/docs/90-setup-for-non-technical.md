@@ -430,6 +430,16 @@ of token, so no code can be extracted from it either.
 
 Left unchanged, the app is correct, the email arrives, and login is impossible.
 
+> **On the free tier, editing templates requires custom SMTP.** The dashboard
+> says *"Emails will be sent using the default templates. Set up custom SMTP to
+> edit their subject and body."* Custom SMTP on a company domain means waiting
+> for the IT department, and testing stops until they answer.
+>
+> To carry on in the meantime, `npm run dev:code` asks Supabase for the login
+> code directly and prints it — no email, no rate limit, no template. It is a
+> development tool only; see §0.3 of `docs/98-single-user-test-plan.md`. The
+> template fix below is still required before real use.
+
 Fix it in **Authentication → Emails → Templates**:
 
 ```

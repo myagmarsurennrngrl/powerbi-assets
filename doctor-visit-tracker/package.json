@@ -16,6 +16,7 @@
     "db:push": "supabase db push",
     "db:test": "node scripts/run-db-tests.mjs",
     "db:check-statements": "node scripts/check-statement-safe.mjs",
+    "dev:code": "node scripts/dev-get-login-code.mjs",
     "lint": "expo lint"
   },
   "dependencies": {
