@@ -1,0 +1,64 @@
+{
+  "//": [
+    "Build profiles for EAS (Expo Application Services).",
+    "",
+    "WHY THIS FILE EXISTS",
+    "Expo Go — the app you scan a QR code with — only ever supports the newest",
+    "Expo SDK. When it does not support this project's SDK, no amount of",
+    "updating it helps, and the only route onto a phone is a real build.",
+    "",
+    "It is also the route the company needs regardless: seven representatives",
+    "cannot install Expo Go and scan a QR code every morning.",
+    "",
+    "WHICH PROFILE TO USE",
+    "  development  While building the app. Includes the developer menu and",
+    "               connects to `npx expo start`. Install once, then it behaves",
+    "               like Expo Go but supports this exact project.",
+    "  preview      What you give the seven representatives to trial. A normal",
+    "               standalone app. Android produces an .apk you can send by",
+    "               link; no app store involved.",
+    "  production   A store submission. Only needed if the company ever decides",
+    "               to publish publicly, which for an internal app it should not.",
+    "",
+    "Android needs nothing but a free Expo account. iOS needs a paid Apple",
+    "Developer account (US$99/year) — Apple does not allow installing an",
+    "unsigned app by any route.",
+    "",
+    "See docs/81-device-testing.md and docs/82-production-deployment.md."
+  ],
+
+  "cli": {
+    "version": ">= 5.9.0",
+    "appVersionSource": "local"
+  },
+
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false
+      }
+    },
+
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+
+    "production": {
+      "channel": "production",
+      "autoIncrement": true
+    }
+  },
+
+  "submit": {
+    "production": {}
+  }
+}
