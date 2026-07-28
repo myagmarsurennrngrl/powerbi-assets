@@ -299,21 +299,95 @@ In Supabase: **Project Settings** (gear icon) → **API**. You need:
 * **Project URL** — looks like `https://abcdefgh.supabase.co`
 * **anon public** key — a very long string
 
-> ⚠️ There is also a **service_role** key on that page. **Never** put it in the app or send it to anyone. It ignores all security rules. The app refuses to start if it detects one.
+Use the **Copy** button next to each value. Typing them by hand will not work.
+
+> ### ⚠️ The third key on that page — read this
+>
+> There is also a **service_role** `secret` key. **Never** put it in the app, in `.env`, or in a
+> message to anyone.
+>
+> It ignores every security rule in this project. If it reaches the app, then anyone who installs
+> the app can read every doctor, every visit and every employee's movements, and can delete all of
+> it. All 25 migrations' worth of protection becomes decoration.
+>
+> The app checks the key at startup and refuses to run if it finds a `service_role` one — but do
+> not test that. Copy only the row labelled **anon** `public`.
 
 ### C2. Create the `.env` file
-1. In the project folder, find `.env.example`.
-2. Make a copy of it in the same folder.
-3. Rename the copy to exactly `.env` (no `.txt`, nothing before the dot).
-4. Open `.env` and replace the two placeholder values with your Project URL and anon key.
 
-It should end up looking like:
+The `.env` file is how the app learns **which** database to talk to. Two lines: an address and a
+key. It stays on your computer and is never uploaded — which is the whole reason the key does not
+live in the code.
+
+> **Windows: do not try this in File Explorer.** Explorer refuses to create a file whose name
+> starts with a dot ("You must type a file name"), and it *hides* file extensions — so a file that
+> looks like `.env` may really be `.env.txt`, and the app will not find it. Nothing on screen tells
+> you. Use the Terminal instead; it takes three commands.
+
+#### Windows (PowerShell or Command Prompt)
+
+```powershell
+cd "C:\dev\powerbi-assets-...\doctor-visit-tracker"
+Copy-Item .env.example .env
+notepad .env
+```
+
+*(Command Prompt: `copy .env.example .env` and `notepad .env`.)*
+
+#### macOS / Linux
+
+```bash
+cd ~/path/to/doctor-visit-tracker
+cp .env.example .env
+open -e .env          # or: nano .env
+```
+
+#### Then fill in the two values
+
+Find these two lines and replace the placeholders with what you copied in C1:
+
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://abcdefgh.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...(very long)...
 ```
 
-Save and close. **Never email this file or put it on GitHub.** The project already blocks it from being uploaded.
+Leave every other line alone. Then save and close.
+
+**Four things that quietly break it:**
+
+| Correct | Wrong |
+|---|---|
+| `EXPO_PUBLIC_SUPABASE_URL=https://...` | `EXPO_PUBLIC_SUPABASE_URL = https://...` — no spaces around `=` |
+| `...ANON_KEY=eyJhbG...` | `...ANON_KEY="eyJhbG..."` — no quotation marks |
+| The key on one unbroken line | The key wrapped onto two lines |
+| Nothing after the value | A stray space at the end of the line |
+
+Always use the **Copy** button in Supabase. Typing these by hand does not work.
+
+#### Check it before moving on
+
+```powershell
+Get-Content .env | Select-String "EXPO_PUBLIC"     # Windows
+grep EXPO_PUBLIC .env                              # macOS / Linux
+```
+
+Two lines, with your real values. If you still see `your-project-ref` or `paste-your`, the file
+was not saved.
+
+Confirm the name is right — this is the `.env.txt` trap:
+
+```powershell
+Get-ChildItem -Force -Filter ".env*" | Select-Object Name    # Windows
+ls -a | grep env                                             # macOS / Linux
+```
+
+You want exactly `.env` and `.env.example`. If you see `.env.txt`, rename it:
+
+```powershell
+Move-Item .env.txt .env -Force
+```
+
+**Never email this file or put it on GitHub.** `.gitignore` already blocks it from being uploaded.
 
 ---
 
