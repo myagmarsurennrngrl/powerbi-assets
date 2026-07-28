@@ -185,20 +185,83 @@ Prompt is the easier route.
 4. Click **Create new project** and wait ~2 minutes.
 
 ### B2. Build the tables
+
+There are **25 migration files**, and they must all run, in number order.
+
+#### The easy way (recommended)
+
+One command does all 25, in order, and stops if anything fails. In your Terminal, in the
+`doctor-visit-tracker` folder:
+
+```
+npx.cmd supabase login
+npx.cmd supabase link --project-ref <your-project-ref>
+npx.cmd supabase db push
+```
+
+*(macOS, or Windows Command Prompt: drop the `.cmd` — just `npx supabase ...`)*
+
+Your **project ref** is the code in your Supabase address bar:
+`https://supabase.com/dashboard/project/`**`abcdefghijklm`**. It will ask for the database
+password you saved in B1.
+
+This is worth the three commands. Pasting 25 files by hand is where this step goes wrong.
+
+#### The manual way
+
+If you would rather not install anything:
+
 1. In Supabase, click **SQL Editor** in the left menu.
 2. Open the folder `supabase/migrations` on your computer.
 3. Open `0001_extensions_and_enums.sql` in any text editor (Notepad / TextEdit).
-4. Select all the text (Ctrl+A / ⌘+A), copy it, paste it into the Supabase SQL Editor, and click **Run**.
+4. Select all the text (Ctrl+A / ⌘+A), copy it, paste it into the Supabase SQL Editor, click **Run**.
 5. You should see **Success. No rows returned.** That is correct.
-6. **Repeat for every file in number order**: 0002, 0003, 0004, 0005, 0006, 0007, 0008.
+6. **Repeat for all 25 files in number order** — 0002, 0003, 0004 … through to 0025. Do not skip
+   any, and do not change the order.
 
-> ⚠️ The order matters. Each file depends on the one before it. If you skip one you will get an error mentioning something that "does not exist".
+> ⚠️ **Three ways this goes wrong, all of which produce the same confusing error later:**
+>
+> * **Skipping a file.** Each depends on the ones before it.
+> * **Text left selected in the SQL editor.** It then runs only the selection, not the whole file.
+>   Click once in the editor before pressing Run so nothing is highlighted.
+> * **A partial paste.** Some of these files are long. Check the last line you pasted matches the
+>   last line of the file.
+>
+> The symptom is always the same: an error several files later saying something
+> *"does not exist"* — pointing at the wrong file.
+
+### B2b. Check every migration landed
+
+Whatever route you took, verify it. Paste **`supabase/check-migrations.sql`** into the SQL editor
+and run it.
+
+You get one row per migration with ✅ or ❌, and a final line telling you exactly what to run
+next. It reads nothing and changes nothing, so it is safe to run at any time.
+
+```
+ status     | #  | migration                   | purpose
+ ✅         |  9 | 0009_planning_tables        | Weekly plans and planned visits
+ ❌ MISSING | 10 | 0010_planning_logic         | Plan deadline and status machine
+ ...
+ Run this file next: supabase/migrations/0010_planning_logic.sql
+```
+
+Keep running the named file and re-checking until all 25 show ✅.
 
 ### B3. Add the test data
-Do the same with `supabase/seed/0001_phase1_master_data.sql`.
 
-At the end you should see a green message listing:
+Three seed files, in order, the same way:
+
+1. `supabase/seed/0001_phase1_master_data.sql` — clinics, doctors, brands, staff
+2. `supabase/seed/0002_phase2_weekly_plans.sql` — example weekly plans
+3. `supabase/seed/0003_phase3_visits.sql` — example completed visits, so the KPI screens have
+   something to show
+
+After the first one you should see a green message listing:
 `7 reps, 3 managers, 1 admin, 15 clinics, 50 doctors, 85 doctor-clinic links, 10 brands, 50 products, 24 brand assignments`
+
+> **This is fictional test data.** Never apply the seed files to the real production project — see
+> `docs/82-production-deployment.md`.
 
 ### B4. Check it worked
 Click **Table Editor** in the left menu. You should see tables named `clinic`, `doctor`, `brand`, `product`, `app_user` and others. Click `clinic` — you should see 15 rows.
@@ -305,7 +368,7 @@ Log in as a representative. Open Эмнэлгүүд → any clinic.
 |---|---|---|
 | `command not found: npm` | Node.js is not installed | Redo step A1, then restart the computer |
 | `Аппын тохиргоо дутуу байна` | The app cannot find `.env` | Check the file is named exactly `.env` and sits next to `package.json` |
-| `relation "..." does not exist` in Supabase | A migration was skipped or run out of order | Re-run the migrations from 0001 in order |
+| `... does not exist` in Supabase | A migration was skipped, or only part of one ran | Run `supabase/check-migrations.sql` — it names the exact file to run next |
 | No code arrives by email | Supabase's test email limit, or spam folder | Wait an hour, or set up SMTP (Part D3 note) |
 | «Таны бүртгэл идэвхжээгүй байна» | Login worked, but no `app_user` row | Do step B6 for that person |
 | App shows no clinics at all | Seed not loaded, or user not provisioned | Check B3 and B6 |
