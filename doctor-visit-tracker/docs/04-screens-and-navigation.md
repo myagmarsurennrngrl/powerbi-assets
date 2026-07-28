@@ -60,7 +60,7 @@ visit detail) — they just cannot act on them.
 
 | # | Route | Mongolian title | Who | Purpose & key elements | Primary action |
 |---|---|---|---|---|---|
-| 1 | `/login` | Нэвтрэх | all | Email field → OTP code field. Shows allowed-domain hint. Rejects non-approved domains with a clear Mongolian message. Offline: explains login needs internet. | **Код авах** → **Нэвтрэх** |
+| 1 | `/login` | Нэвтрэх | all | Email + password on one screen. Rejects non-approved domains with a clear Mongolian message, before the password is checked. "Forgot password" explains that an administrator must issue one — it is not a button. Offline: explains login needs internet. | **Нэвтрэх** |
 | 2 | `/(rep)/home` | Нүүр | rep | Today's planned count, completed today, remaining today, current-week KPI ring, pending follow-ups, sync-issue banner. | **Өнөөдрийн маршрут руу** |
 | 3 | `/(rep)/today` | Өнөөдрийн маршрут | rep | Ordered card list: order no., clinic, doctor names, address, **distance from me**, planned brands chips, status pill, `Газрын зураг` + `Уулзалт эхлүүлэх` + `Чөлөөлөх` buttons. Pull-to-refresh. Offline badge. | **Уулзалт эхлүүлэх** |
 | 4 | `/(rep)/week` | Долоо хоногийн хуваарь | rep | 7-day calendar strip + per-day visit counts + plan status pill. | **Төлөвлөгөө засах** |

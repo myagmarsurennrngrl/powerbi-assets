@@ -78,8 +78,11 @@ suite fails by name if one is missed.
 - [ ] Login restricted to approved company domains, enforced by a trigger on `auth.users` —
       not by the app
 - [ ] Every non-email auth provider is disabled in the Supabase dashboard
-- [ ] "Confirm email" is off (the app uses one-time codes, not links)
-- [ ] Company SMTP configured — Supabase's built-in sender is rate-limited and for testing only
+- [ ] **"Confirm email" is off.** The app signs in with a password and no confirmation
+      email can be delivered — left on, a new account stays unconfirmed and Supabase refuses
+      the sign-in with the same message it uses for a wrong password (docs/99-password-login.md)
+- [ ] Company SMTP configured — **not required for login any more**, but until it exists there
+      is no self-service password reset and every reset is an administrator action
 - [ ] An account with no `app_user` row can sign in but reaches nothing, and is told so clearly
 - [ ] Session tokens are in the device keychain via `expo-secure-store`, never AsyncStorage
 - [ ] Exactly two administrators
@@ -92,7 +95,8 @@ Enforced by Supabase in front of PostgreSQL, configured in the dashboard. There 
 no in-database imitation: a counter table is bypassed by anything that never reaches the
 database, which is exactly what a flood does.
 
-- [ ] **Authentication → Rate limits → OTP sends:** a small number per hour per address
+- [ ] **Authentication → Rate limits → sign-in attempts:** capped, so a password cannot be
+      brute-forced
 - [ ] **Authentication → Rate limits → token refresh, verification:** left at the defaults or
       lower
 - [ ] **Project Settings → API:** request rate limits reviewed

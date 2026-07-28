@@ -99,6 +99,14 @@ export default function SettingsScreen() {
             value={profile ? userRoleMn[profile.role] : '—'}
           />
           <Field label={mn.settings.phone} value={profile?.phone ?? '—'} />
+
+          {/* The only way to change your own password. There is no email-based
+              reset — see src/lib/auth/types.ts — so this is also the only way
+              to get off an administrator-issued one. */}
+          <SecondaryButton
+            label={mn.auth.changePassword}
+            onPress={() => router.push('/change-password')}
+          />
         </Card>
       </Section>
 

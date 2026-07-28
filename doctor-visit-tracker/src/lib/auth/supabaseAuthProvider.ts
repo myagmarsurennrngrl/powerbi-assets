@@ -1,5 +1,5 @@
 /**
- * AuthProvider backed by Supabase email OTP.
+ * AuthProvider backed by Supabase email + password.
  *
  * This is the ONLY file in the app that talks to Supabase Auth. Replacing it
  * with an Entra ID implementation is the whole migration on the client side.
@@ -16,13 +16,13 @@ export class SupabaseAuthProvider implements AuthProvider {
     return supabase;
   }
 
-  async requestCode(email: string): Promise<void> {
+  async signIn(email: string, password: string): Promise<AuthIdentity> {
     const normalised = email.trim().toLowerCase();
 
-    // Ask the server whether this address may sign in at all, so the person
-    // gets an immediate, clear answer instead of waiting for an email that
-    // will never arrive. This is a courtesy check only — the authoritative
-    // rejection happens in the database trigger on auth.users (migration 0006).
+    // Ask the server whether this address may sign in at all, so somebody
+    // using a personal address is told so instead of being left to wonder
+    // about their password. Courtesy only — the authoritative rejection is the
+    // database trigger on auth.users (migration 0006).
     const { data: allowed, error: checkError } = await this.client.rpc('fn_can_email_sign_in', {
       p_email: normalised,
     });
@@ -33,30 +33,20 @@ export class SupabaseAuthProvider implements AuthProvider {
     // A failed check (offline, RPC unavailable) must not block a legitimate
     // login attempt — fall through and let the server decide.
 
-    const { error } = await this.client.auth.signInWithOtp({
+    const { data, error } = await this.client.auth.signInWithPassword({
       email: normalised,
-      options: {
-        // Administrators provision people first; self-signup is not allowed.
-        shouldCreateUser: true,
-      },
+      password,
     });
 
     if (error) throw mapAuthError(error);
-  }
-
-  async verifyCode(email: string, code: string): Promise<AuthIdentity> {
-    const normalised = email.trim().toLowerCase();
-
-    const { data, error } = await this.client.auth.verifyOtp({
-      email: normalised,
-      token: code.trim(),
-      type: 'email',
-    });
-
-    if (error) throw mapAuthError(error);
-    if (!data.user) throw new AuthError('unknown', 'No user returned after verification.');
+    if (!data.user) throw new AuthError('unknown', 'No user returned after sign-in.');
 
     return { id: data.user.id, email: data.user.email ?? normalised };
+  }
+
+  async changePassword(newPassword: string): Promise<void> {
+    const { error } = await this.client.auth.updateUser({ password: newPassword });
+    if (error) throw mapAuthError(error);
   }
 
   async getIdentity(): Promise<AuthIdentity | null> {
@@ -94,20 +84,41 @@ export class SupabaseAuthProvider implements AuthProvider {
   }
 }
 
-/** Translate a provider error into one of our stable error codes. */
-function mapAuthError(error: { message?: string; status?: number }): AuthError {
+/**
+ * Translate a provider error into one of our stable error codes.
+ *
+ * Note what is deliberately NOT distinguished: a wrong password and an unknown
+ * address both become `invalid_credentials`. Supabase returns the same "Invalid
+ * login credentials" for both, and that is right — telling an attacker which
+ * addresses are registered is exactly the enumeration that
+ * fn_can_email_sign_in was written to avoid leaking.
+ */
+export function mapAuthError(error: { message?: string; status?: number }): AuthError {
   const message = (error.message ?? '').toLowerCase();
 
   if (message.includes('approved company email domain') || message.includes('restricted')) {
     return new AuthError('domain_not_allowed', error.message ?? '', error);
   }
-  if (message.includes('token') || message.includes('otp') || message.includes('expired')) {
-    return new AuthError('invalid_code', error.message ?? '', error);
-  }
   if (error.status === 429 || message.includes('rate limit')) {
     return new AuthError('rate_limited', error.message ?? '', error);
   }
-  if (message.includes('network') || message.includes('fetch')) {
+  // Ordered before the credentials case on purpose: "Password should be at
+  // least 6 characters" also contains the word "password".
+  if (
+    message.includes('password should be') ||
+    message.includes('weak password') ||
+    message.includes('password is too')
+  ) {
+    return new AuthError('weak_password', error.message ?? '', error);
+  }
+  if (
+    message.includes('invalid login credentials') ||
+    message.includes('invalid credentials') ||
+    message.includes('email not confirmed')
+  ) {
+    return new AuthError('invalid_credentials', error.message ?? '', error);
+  }
+  if (message.includes('network') || message.includes('fetch') || message.includes('timeout')) {
     return new AuthError('network', error.message ?? '', error);
   }
   return new AuthError('unknown', error.message ?? 'Unknown authentication error', error);

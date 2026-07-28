@@ -29,7 +29,7 @@ graph TB
     end
 
     subgraph Supabase["☁️ Supabase project"]
-        Auth["Auth<br/>Email OTP / magic link"]
+        Auth["Auth<br/>Email + password"]
         API["PostgREST auto REST API"]
         RPC["Edge / RPC functions<br/>(check-in, check-out, KPI)"]
         DB[("PostgreSQL<br/>+ Row Level Security")]
@@ -64,7 +64,7 @@ graph TB
 | Mobile framework | **Expo (React Native) + TypeScript** | One codebase for iOS + Android; Expo handles builds and OTA updates without a Mac in the office; TypeScript catches mistakes before they reach users. |
 | Navigation | **Expo Router** (file-based) | Screens map to files, so the 23-screen structure stays readable. Deep links work for free. |
 | Database | **PostgreSQL 15+ (Supabase)** | Row Level Security is a first-class feature — this is what makes "a representative cannot read another representative's plan" a *database* guarantee, not a UI guarantee. |
-| Auth | **Supabase Auth, email OTP** | No passwords to leak or reset. Restricted to approved company domains by a server-side hook + a database trigger (defence in depth). |
+| Auth | **Supabase Auth, email + password** | Was email OTP, which is the better mechanism; replaced because the email never arrived (docs/99-password-login.md). Restricted to approved company domains by a server-side hook + a database trigger (defence in depth). No self-registration: without email there is no proof of mailbox ownership, so an administrator issues the first password. |
 | Server logic | **Postgres functions (RPC)**, Edge Functions only where needed | Check-in/check-out must be atomic and use the *server* clock. A Postgres function gives us `now()` from the server and a single transaction. |
 | Offline | **expo-sqlite** cache + **outbox queue** table | Visits created underground / in a lift are never lost. |
 | Files | **Supabase Storage**, private bucket + signed URLs | Exception attachments (e.g. photo of a closed clinic door). |
@@ -93,7 +93,7 @@ Latest stable, mutually compatible versions are pinned in `package.json` and rec
 
 ## 5. Authentication — and how we swap to Microsoft Entra ID later
 
-Today: Supabase Auth email OTP → issues a JWT → JWT carries `sub` (auth user id).
+Today: Supabase Auth email + password → issues a JWT → JWT carries `sub` (auth user id).
 
 The application **never reads the identity provider directly**. Instead:
 

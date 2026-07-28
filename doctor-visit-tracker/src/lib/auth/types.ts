@@ -10,12 +10,36 @@
  * app_user.auth_user_id is the only column that knows a provider exists.
  *
  * See docs/01-architecture.md §5.
+ *
+ * WHY PASSWORDS RATHER THAN ONE-TIME CODES
+ * ----------------------------------------
+ * This started as email OTP, which is the better mechanism: nothing to steal,
+ * nothing to forget, no reset flow to abuse. It was replaced because the email
+ * never arrived. On the Supabase free tier the stock template sends a link a
+ * phone app cannot use, editing that template requires custom SMTP, and custom
+ * SMTP on a company domain requires the IT department. See
+ * docs/99-password-login.md.
+ *
+ * What that costs, recorded honestly:
+ *
+ *   * There is no self-service reset. Without email delivery there is no way
+ *     to prove somebody owns a mailbox, so a forgotten password is an
+ *     administrator's job — `npm run dev:set-password`.
+ *   * For the same reason there is NO SELF-REGISTRATION. If anyone could
+ *     choose the password for an address, an employee could claim their
+ *     manager's address before the manager did and inherit their access. With
+ *     a one-time code, holding the mailbox was the proof. Now the
+ *     administrator issues the first password and the person changes it.
+ *
+ * If SMTP is ever configured, a self-service reset becomes implementable and
+ * the OTP path can return as an option. Nothing here forecloses either.
  */
 
 export type AuthErrorCode =
   | 'domain_not_allowed'   // address is outside the approved company domains
   | 'not_provisioned'      // authenticated, but no active app_user row exists
-  | 'invalid_code'         // wrong or expired one-time code
+  | 'invalid_credentials'  // wrong email or wrong password — deliberately one code
+  | 'weak_password'        // rejected when setting a new one
   | 'network'              // no connectivity
   | 'rate_limited'         // too many attempts
   | 'unknown';
@@ -40,14 +64,21 @@ export interface AuthIdentity {
 
 export interface AuthProvider {
   /**
-   * Ask the provider to send a one-time code / magic link.
-   * Implementations must check the approved-domain rule first so the user gets
-   * a clear message instead of an email that will never let them in.
+   * Exchange an email and password for a session.
+   *
+   * Implementations must check the approved-domain rule first, so somebody
+   * using a personal address gets told that rather than being left to wonder
+   * about their password.
    */
-  requestCode(email: string): Promise<void>;
+  signIn(email: string, password: string): Promise<AuthIdentity>;
 
-  /** Exchange the emailed code for a session. */
-  verifyCode(email: string, code: string): Promise<AuthIdentity>;
+  /**
+   * Change the signed-in user's own password.
+   *
+   * Requires a live session — this is a change, not a reset. There is
+   * deliberately no `resetPassword(email)`; see the note at the top.
+   */
+  changePassword(newPassword: string): Promise<void>;
 
   /** The current identity, or null when signed out. */
   getIdentity(): Promise<AuthIdentity | null>;

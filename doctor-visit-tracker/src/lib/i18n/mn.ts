@@ -28,6 +28,7 @@ export const mn = {
     back: 'Буцах',
     next: 'Дараах',
     confirm: 'Баталгаажуулах',
+    ok: 'Ok',
     error: 'Алдаа гарлаа',
     empty: 'Мэдээлэл олдсонгүй',
     notImplemented: 'Хараахан хэрэгжээгүй',
@@ -43,37 +44,73 @@ export const mn = {
 
   auth: {
     title: 'Нэвтрэх',
-    subtitle: 'Байгууллагын ажлын и-мэйлээрээ нэвтэрнэ үү.',
+    subtitle: 'Байгууллагын ажлын и-мэйл болон нууц үгээрээ нэвтэрнэ үү.',
     emailLabel: 'Ажлын и-мэйл хаяг',
     emailPlaceholder: 'ner@monos.mn',
-    sendCode: 'Код авах',
-    sendingCode: 'Код илгээж байна...',
-    codeLabel: 'И-мэйлээр ирсэн код',
-    codePlaceholder: '000000',
-    verify: 'Нэвтрэх',
-    verifying: 'Шалгаж байна...',
-    resendCode: 'Кодыг дахин илгээх',
-    resendIn: (seconds: number) => `Дахин илгээх (${seconds} сек)`,
-    changeEmail: 'Өөр и-мэйл хаяг оруулах',
-    codeSentTo: (email: string) => `${email} хаяг руу код илгээлээ.`,
+    passwordLabel: 'Нууц үг',
+    passwordPlaceholder: 'Нууц үгээ оруулна уу',
+    passwordShow: 'Нууц үгийг харуулах',
+    passwordHide: 'Нууц үгийг нуух',
+    signIn: 'Нэвтрэх',
+    signingIn: 'Нэвтэрч байна...',
     signOut: 'Гарах',
     signOutConfirm: 'Та системээс гарахдаа итгэлтэй байна уу?',
+
+    // "I forgot my password" — an explanation, not a button.
+    //
+    // There is no self-service reset and there cannot be one: without working
+    // email delivery nothing can prove that somebody owns a mailbox. Offering
+    // a button that fails silently would be worse than saying so.
+    passwordHelpToggle: 'Нууц үгээ мартсан бол?',
+    passwordHelpBody:
+      'И-мэйлээр нууц үг сэргээх боломжгүй тул администратор танд шинэ нууц үг ' +
+      'олгоно. Системийн администраторт хандаж, ажлын и-мэйл хаягаа хэлнэ үү. ' +
+      'Шинэ нууц үгээ авсны дараа Тохиргоо дэлгэцээс өөрийн нууц үгээ ' +
+      'солихыг зөвлөж байна.',
+
+    // Changing your own password, from Settings.
+    changePassword: 'Нууц үг солих',
+    changePasswordTitle: 'Нууц үгээ солих',
+    newPasswordLabel: 'Шинэ нууц үг',
+    newPasswordAgainLabel: 'Шинэ нууц үгээ дахин',
+    changePasswordSubmit: 'Хадгалах',
+    changePasswordSaving: 'Хадгалж байна...',
+    changePasswordDone: 'Нууц үг солигдлоо.',
+    passwordRule: (min: number) =>
+      `Дор хаяж ${min} тэмдэгт. Урт нь хамгийн чухал — том жижиг үсэг, тоо, ` +
+      'тэмдэг хольж хутгах шаардлагагүй. Санахад хялбар 2–3 үг бол хамгийн зөв.',
 
     // Error messages. Each one tells the person what to DO next.
     errorDomainNotAllowed:
       'Энэ и-мэйл хаягаар нэвтрэх боломжгүй. Зөвхөн байгууллагын ажлын и-мэйл хаяг ашиглана уу.',
     errorNotProvisioned:
       'Таны бүртгэл идэвхжээгүй байна. Системийн администраторт хандана уу.',
-    errorInvalidCode: 'Код буруу эсвэл хугацаа нь дууссан байна. Дахин оролдоно уу.',
+    // Deliberately does not say WHICH of the two is wrong: naming the address
+    // as unknown would tell an attacker which addresses are registered.
+    errorInvalidCredentials:
+      'И-мэйл хаяг эсвэл нууц үг буруу байна. Дахин оролдоно уу.',
     errorNetwork: 'Интернэт холболтоо шалгаад дахин оролдоно уу.',
     errorGeneric: 'Нэвтрэхэд алдаа гарлаа. Дахин оролдоно уу.',
     errorRateLimited:
-      'Хэт олон удаа код хүслээ. Хэдэн минут хүлээгээд дахин оролдоно уу. (Supabase-ийн үнэгүй и-мэйл илгээгч цагт хэдхэн захидал л зөвшөөрдөг.)',
+      'Хэт олон удаа оролдлоо. Хэдэн минут хүлээгээд дахин оролдоно уу.',
     errorDetailLabel: 'Серверийн хариу (администраторт үзүүлнэ үү):',
     errorEmailRequired: 'И-мэйл хаягаа оруулна уу.',
     errorEmailInvalid: 'И-мэйл хаяг буруу байна.',
-    errorCodeRequired: 'Кодоо оруулна уу.',
-    errorCodeTooShort: 'Код бүтэн биш байна. И-мэйлд ирсэн бүх оронг оруулна уу.',
+    errorPasswordRequired: 'Нууц үгээ оруулна уу.',
+    errorPasswordMismatch: 'Хоёр нууц үг таарахгүй байна.',
+
+    // One message per rule in src/domain/password.ts. Each names the fix.
+    errorPasswordTooShort: (min: number) => `Нууц үг дор хаяж ${min} тэмдэгт байх ёстой.`,
+    errorPasswordTooLong:
+      'Нууц үг хэтэрхий урт байна. Кирилл үсэг тэмдэгт тутамдаа 2 байр эзэлдэг ' +
+      'тул бага зэрэг хасна уу.',
+    errorPasswordSameAsEmail: 'Нууц үг и-мэйл хаягтайгаа адил байж болохгүй.',
+    errorPasswordTooObvious:
+      'Энэ нууц үг хэтэрхий таамаглахад хялбар байна. Өөр зүйл сонгоно уу.',
+    errorPasswordOneCharacter: 'Нэг л тэмдэгт дахин дахин бичиж болохгүй.',
+    errorPasswordWhitespace: 'Нууц үг хоосон байна.',
+    errorPasswordWeakServer:
+      'Серверийн шаардлагад тохирохгүй байна. Илүү урт нууц үг сонгоно уу.',
   },
 
   roles: {

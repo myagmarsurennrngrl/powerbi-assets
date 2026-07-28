@@ -43,7 +43,8 @@ Severity: 🔴 high · 🟠 medium · 🟡 low
 | S3 | Client-side-only permission checks | 🔴 | Hard architectural rule: UI may disable, server must reject. Tested via direct API calls in `tests/rls/`. |
 | S4 | SQL injection | 🟠 | No string-concatenated SQL. PostgREST parameterises; all functions use typed parameters and `search_path = ''`. |
 | S5 | Malicious file upload as an exception attachment | 🟠 | Private Storage bucket, signed URLs only, MIME allow-list (`image/jpeg`, `image/png`, `application/pdf`), 5 MB size cap, randomised object key, no execution path. |
-| S6 | Brute-force / OTP abuse | 🟠 | Supabase Auth rate limits + per-email attempt throttle; app-level cooldown on the "resend code" button. |
+| S6 | Brute-force / password guessing | 🟠 | Supabase Auth rate limits on sign-in; minimum 10 characters with obvious choices refused (`src/domain/password.ts`); approved-domain restriction means an attacker must also know a real company address. |
+| S9 | Password reset has no self-service path | 🟠 | Accepted, not mitigated. Email delivery does not work, so proving mailbox ownership is impossible and every reset is an administrator action (`npm run dev:set-password`). Revisit when company SMTP exists — see docs/99-password-login.md §6. |
 | S7 | Audit log tampering | 🟠 | `UPDATE`/`DELETE` revoked from all application roles; writes only via `SECURITY DEFINER` functions. |
 | S8 | Secrets committed to git | 🔴 | `.gitignore` blocks `.env*`; only `.env.example` is committed; `service_role` key never enters the mobile bundle; a test scans the repo for key-shaped strings. |
 | S9 | Power BI credentials over-privileged | 🟠 | Dedicated `reporting_reader` login with `SELECT`-only on the `reporting` schema; no access to `public` or `auth`. |

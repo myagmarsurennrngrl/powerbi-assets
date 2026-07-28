@@ -90,6 +90,7 @@ function RootNavigator() {
       <Stack.Screen name="visit/unplanned" options={{ title: mn.unplanned.title }} />
       <Stack.Screen name="report/[visitId]" options={{ title: mn.completeVisit.title }} />
       <Stack.Screen name="audit" options={{ title: mn.audit.title }} />
+      <Stack.Screen name="change-password" options={{ title: mn.auth.changePasswordTitle }} />
       <Stack.Screen name="sync" options={{ title: mn.sync.title }} />
       <Stack.Screen name="route/[date]" options={{ title: mn.week.title }} />
       <Stack.Screen name="admin/users" options={{ title: mn.admin.usersTitle }} />

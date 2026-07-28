@@ -1,20 +1,22 @@
 /**
  * Screen 1 — Нэвтрэх (Login)
  *
- * Two steps: type the work email, then type the one-time code that arrives by
- * email. No password to forget or leak.
- *
- * The code's length is a Supabase project setting (6 to 10), not a constant —
- * see src/domain/otp.ts for what assuming 6 cost.
+ * Work email plus a password. One step, one button.
  *
  * The domain restriction is checked here for a fast, clear message, but it is
  * ENFORCED by the database (migration 0006). If this screen were bypassed
  * entirely, an unapproved address still could not sign in.
+ *
+ * There is no "forgot password" flow, and that is not an omission — see
+ * src/lib/auth/types.ts. Without working email delivery there is no way to
+ * prove somebody owns a mailbox, so a reset is an administrator's job. The
+ * screen says so rather than offering a button that cannot work.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,50 +25,31 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthError, useSession } from '../src/lib/auth';
 import { getConfigError, getConfigProblem } from '../src/lib/supabase';
-import { LabelledInput, PrimaryButton, SecondaryButton } from '../src/components/ui';
+import { LabelledInput, PrimaryButton } from '../src/components/ui';
 import { mn } from '../src/lib/i18n/mn';
-import { OTP_MAX_LENGTH, isSubmittableOtp, sanitiseOtpInput } from '../src/domain/otp';
 import { colors, radius, spacing, typography } from '../src/theme';
-
-const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function LoginScreen() {
   const { auth, refreshProfile } = useSession();
-
-  const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [reveal, setReveal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** The provider's raw message, shown under the friendly one. See detailFor. */
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
-  const [cooldown, setCooldown] = useState(0);
+  const [showHelp, setShowHelp] = useState(false);
 
   const configMissing = getConfigError();
   /** Present-but-wrong, e.g. a URL with quotation marks round it. */
   const configProblem = getConfigProblem();
-
-  // Cooldown between "resend code" presses — a small client-side brake on top
-  // of Supabase's own server-side rate limiting.
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
-  useEffect(() => {
-    if (cooldown <= 0) {
-      if (timer.current) clearInterval(timer.current);
-      return;
-    }
-    timer.current = setInterval(() => setCooldown((n) => Math.max(0, n - 1)), 1000);
-    return () => {
-      if (timer.current) clearInterval(timer.current);
-    };
-  }, [cooldown]);
 
   const messageFor = (err: unknown): string => {
     if (err instanceof AuthError) {
       switch (err.code) {
         case 'domain_not_allowed':
           return mn.auth.errorDomainNotAllowed;
-        case 'invalid_code':
-          return mn.auth.errorInvalidCode;
+        case 'invalid_credentials':
+          return mn.auth.errorInvalidCredentials;
         case 'network':
           return mn.auth.errorNetwork;
         case 'rate_limited':
@@ -83,21 +66,25 @@ export default function LoginScreen() {
    *
    * Without this the screen said only «Нэвтрэхэд алдаа гарлаа» for every
    * unrecognised failure, which is unactionable for the person and
-   * undiagnosable for whoever they ask. "Signups not allowed for otp" and
-   * "email rate limit exceeded" need completely different responses, and the
-   * app was hiding which one had happened.
+   * undiagnosable for whoever they ask.
    *
-   * Shown small and secondary: the Mongolian sentence is still the message.
+   * Withheld for the two cases where the English adds nothing and the
+   * Mongolian already says everything: a rejected domain, and credentials that
+   * simply do not match.
    */
   const detailFor = (err: unknown): string | null => {
-    if (err instanceof AuthError && err.code !== 'domain_not_allowed') {
+    if (
+      err instanceof AuthError &&
+      err.code !== 'domain_not_allowed' &&
+      err.code !== 'invalid_credentials'
+    ) {
       const raw = err.message?.trim();
       if (raw && raw.toLowerCase() !== 'unknown authentication error') return raw;
     }
     return null;
   };
 
-  const handleRequestCode = useCallback(async () => {
+  const handleSignIn = useCallback(async () => {
     const trimmed = email.trim();
     if (!trimmed) {
       setError(mn.auth.errorEmailRequired);
@@ -107,29 +94,11 @@ export default function LoginScreen() {
       setError(mn.auth.errorEmailInvalid);
       return;
     }
-
-    setBusy(true);
-    setError(null);
-    setErrorDetail(null);
-    try {
-      await auth.requestCode(trimmed);
-      setStep('code');
-      setCooldown(RESEND_COOLDOWN_SECONDS);
-    } catch (err) {
-      setError(messageFor(err));
-      setErrorDetail(detailFor(err));
-    } finally {
-      setBusy(false);
-    }
-  }, [auth, email]);
-
-  const handleVerify = useCallback(async () => {
-    if (!code.trim()) {
-      setError(mn.auth.errorCodeRequired);
-      return;
-    }
-    if (!isSubmittableOtp(code)) {
-      setError(mn.auth.errorCodeTooShort);
+    // Only emptiness is checked. The length rules belong to CHOOSING a
+    // password, not to typing an existing one — applying them here would lock
+    // out anybody whose password predates the current rules.
+    if (!password) {
+      setError(mn.auth.errorPasswordRequired);
       return;
     }
 
@@ -137,7 +106,7 @@ export default function LoginScreen() {
     setError(null);
     setErrorDetail(null);
     try {
-      await auth.verifyCode(email.trim(), code.trim());
+      await auth.signIn(trimmed, password);
       // The root layout reacts to the session change; refreshing the profile
       // makes the transition immediate rather than waiting for the listener.
       await refreshProfile();
@@ -147,7 +116,7 @@ export default function LoginScreen() {
     } finally {
       setBusy(false);
     }
-  }, [auth, code, email, refreshProfile]);
+  }, [auth, email, password, refreshProfile]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -178,93 +147,77 @@ export default function LoginScreen() {
           ) : null}
 
           <View style={styles.card}>
-            {step === 'email' ? (
-              <>
-                <LabelledInput
-                  label={mn.auth.emailLabel}
-                  placeholder={mn.auth.emailPlaceholder}
-                  value={email}
-                  onChangeText={(text) => {
-                    setEmail(text);
-                    setError(null);
-                  }}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="email"
-                  keyboardType="email-address"
-                  inputMode="email"
-                  textContentType="emailAddress"
-                  editable={!busy}
-                  error={error}
-                  onSubmitEditing={() => void handleRequestCode()}
-                  returnKeyType="send"
-                />
-                {errorDetail ? (
-                  <View style={styles.detailBox}>
-                    <Text style={styles.detailLabel}>{mn.auth.errorDetailLabel}</Text>
-                    <Text style={styles.detailText} selectable>
-                      {errorDetail}
-                    </Text>
-                  </View>
-                ) : null}
-                <PrimaryButton
-                  label={busy ? mn.auth.sendingCode : mn.auth.sendCode}
-                  onPress={() => void handleRequestCode()}
-                  busy={busy}
-                  disabled={!!configMissing}
-                />
-              </>
-            ) : (
-              <>
-                <Text style={styles.sentTo}>{mn.auth.codeSentTo(email.trim())}</Text>
-                <LabelledInput
-                  label={mn.auth.codeLabel}
-                  placeholder={mn.auth.codePlaceholder}
-                  value={code}
-                  onChangeText={(text) => {
-                    setCode(sanitiseOtpInput(text));
-                    setError(null);
-                  }}
-                  keyboardType="number-pad"
-                  inputMode="numeric"
-                  textContentType="oneTimeCode"
-                  autoComplete="one-time-code"
-                  maxLength={OTP_MAX_LENGTH}
-                  editable={!busy}
-                  error={error}
-                  style={styles.codeInput}
-                  onSubmitEditing={() => void handleVerify()}
-                  returnKeyType="go"
-                />
-                {errorDetail ? (
-                  <View style={styles.detailBox}>
-                    <Text style={styles.detailLabel}>{mn.auth.errorDetailLabel}</Text>
-                    <Text style={styles.detailText} selectable>
-                      {errorDetail}
-                    </Text>
-                  </View>
-                ) : null}
-                <PrimaryButton
-                  label={busy ? mn.auth.verifying : mn.auth.verify}
-                  onPress={() => void handleVerify()}
-                  busy={busy}
-                />
-                <SecondaryButton
-                  label={cooldown > 0 ? mn.auth.resendIn(cooldown) : mn.auth.resendCode}
-                  onPress={() => void handleRequestCode()}
-                  disabled={busy || cooldown > 0}
-                />
-                <SecondaryButton
-                  label={mn.auth.changeEmail}
-                  onPress={() => {
-                    setStep('email');
-                    setCode('');
-                    setError(null);
-                  }}
-                  disabled={busy}
-                />
-              </>
-            )}
+            <LabelledInput
+              label={mn.auth.emailLabel}
+              placeholder={mn.auth.emailPlaceholder}
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                setError(null);
+              }}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              keyboardType="email-address"
+              inputMode="email"
+              textContentType="emailAddress"
+              editable={!busy}
+              returnKeyType="next"
+            />
+
+            <LabelledInput
+              label={mn.auth.passwordLabel}
+              placeholder={mn.auth.passwordPlaceholder}
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                setError(null);
+              }}
+              // Long passwords are hard to type correctly on a phone keyboard,
+              // and a wrong one here costs an administrator's time. Revealing
+              // is the lesser risk.
+              secureTextEntry={!reveal}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="current-password"
+              textContentType="password"
+              editable={!busy}
+              error={error}
+              onSubmitEditing={() => void handleSignIn()}
+              returnKeyType="go"
+            />
+
+            <Pressable onPress={() => setReveal((on) => !on)} hitSlop={8}>
+              <Text style={styles.revealToggle}>
+                {reveal ? mn.auth.passwordHide : mn.auth.passwordShow}
+              </Text>
+            </Pressable>
+
+            {errorDetail ? (
+              <View style={styles.detailBox}>
+                <Text style={styles.detailLabel}>{mn.auth.errorDetailLabel}</Text>
+                <Text style={styles.detailText} selectable>
+                  {errorDetail}
+                </Text>
+              </View>
+            ) : null}
+
+            <PrimaryButton
+              label={busy ? mn.auth.signingIn : mn.auth.signIn}
+              onPress={() => void handleSignIn()}
+              busy={busy}
+              disabled={!!configMissing}
+            />
+
+            <Pressable onPress={() => setShowHelp((on) => !on)} hitSlop={8}>
+              <Text style={styles.helpToggle}>{mn.auth.passwordHelpToggle}</Text>
+            </Pressable>
+
+            {showHelp ? (
+              <View style={styles.helpBox}>
+                <Text style={styles.helpText}>{mn.auth.passwordHelpBody}</Text>
+              </View>
+            ) : null}
           </View>
 
           <Text style={styles.footnote}>{mn.settings.locationPolicy}</Text>
@@ -277,7 +230,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   // Secondary to the Mongolian message, but selectable so it can be copied
   // into a support message. Diagnosing "it says an error occurred" is
-  // impossible; diagnosing "Signups not allowed for otp" takes seconds.
+  // impossible; diagnosing "Signups not allowed" takes seconds.
   detailBox: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: radius.md,
@@ -304,8 +257,25 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
   },
-  sentTo: { ...typography.body, color: colors.textMuted },
-  codeInput: { fontSize: 26, letterSpacing: 8, textAlign: 'center' },
+
+  revealToggle: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  helpToggle: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+  },
+  helpBox: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  helpText: { ...typography.caption, color: colors.textMuted, lineHeight: 19 },
 
   configError: {
     backgroundColor: colors.dangerBg,

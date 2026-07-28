@@ -42,7 +42,7 @@ supabase db push
 ```
 
 Or, without the CLI: open the SQL editor and paste each file in `supabase/migrations/` **in
-numerical order**, 0001 through 0025. Do not skip one and do not reorder them.
+numerical order**, 0001 through 0026. Do not skip one and do not reorder them.
 
 Do **not** apply anything from `supabase/seed/` or `supabase/tests/`.
 
@@ -59,20 +59,16 @@ moment in the project's life to find a problem.
 ### Step 4 — Configure authentication
 Supabase → **Authentication**:
 
-* **Providers → Email:** enabled. **Disable "Confirm email"** — the app uses one-time codes, not
-  confirmation links.
+* **Providers → Email:** enabled. **Disable "Confirm email"** — the app signs in with a password,
+  and no confirmation email can be delivered here. Left on, an account stays unconfirmed and the
+  sign-in fails with the same message as a wrong password.
 * **Providers:** disable every other provider. Anything enabled is a way in.
-* **Emails → Templates:** edit **Confirm signup** AND **Magic Link** so the body contains
-  `{{ .Token }}`. Both ship with a confirmation *link* instead, which a phone app cannot use —
-  the email arrives, the app is correct, and nobody can log in. See D4 in
-  `docs/90-setup-for-non-technical.md` for the exact template text. Fixing only one of the two
-  works for a person's first login and breaks on their second.
 * **URL Configuration → Site URL:** the app scheme from `app.json`.
-* **Emails → SMTP Settings:** connect the company mail server. Supabase's built-in sender is
-  limited to a few messages an hour and is for testing only. Seven representatives signing in on
-  a Monday morning will exceed it.
-* **Rate limits:** set OTP sends to something sane (5 per hour per address is generous for
-  eleven people).
+* **Emails → SMTP Settings:** not required for login — nothing in the sign-in path sends email
+  any more. Worth doing anyway: until it exists there is no self-service password reset, and every
+  forgotten password is an administrator running `npm run dev:set-password`. See
+  `docs/99-password-login.md` §6.
+* **Rate limits:** cap sign-in attempts, so a password cannot be brute-forced.
 
 ### Step 5 — Approved email domain
 ```sql
@@ -89,8 +85,15 @@ INSERT INTO public.app_user (email, full_name, role)
 VALUES ('admin@monos.mn', 'Нэр Овог', 'administrator');
 ```
 
-This is the only account created by hand. That person signs in — the account links itself on
-first sign-in — and creates everyone else through **Хэрэглэгчийн удирдлага**.
+This is the only account created by hand. Then give it a password:
+
+```powershell
+npm run dev:set-password
+```
+
+and run the SQL statement it prints, which links the login to this row. That person signs in and
+creates everyone else through **Хэрэглэгчийн удирдлага** — each of whom also needs
+`dev:set-password` run for them once.
 
 > **Do not create a second administrator "just in case" and then forget it.** Every
 > administrator can change roles and read the audit log. Two is the right number: one primary,
@@ -216,7 +219,7 @@ database gets edited by hand at eleven at night.
 - [ ] Migrations 0001–0025 applied, in order, nothing skipped
 - [ ] `SELECT * FROM public.fn_security_findings();` returns zero rows
 - [ ] No seed data in production
-- [ ] Company SMTP configured — not Supabase's test sender
+- [ ] Every staff member has had a password issued and has changed it
 - [ ] Email confirmation disabled; every non-email provider disabled
 - [ ] `approved_email_domain` contains `monos.mn` and nothing else
 - [ ] Exactly two administrators
