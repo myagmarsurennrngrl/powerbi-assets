@@ -715,9 +715,26 @@ describe.skipIf(!DB_AVAILABLE)('check-in and check-out', () => {
 
   // ---------------------------------------------------------------------------
   describe('ACCEPTANCE 19: no continuous tracking', () => {
-    it('stores location ONLY in check-in and check-out events', async () => {
-      // If a future change ever adds a location column somewhere else, this
-      // fails and forces the conversation.
+    it('stores location ONLY where the privacy promise allows', async () => {
+      /**
+       * The promise in Settings is that location is read at exactly three
+       * moments: check-in, check-out, and an exception the representative
+       * CHOOSES to submit. This test is the enforcement of that sentence.
+       *
+       * If a future change adds a location column anywhere else, this fails
+       * and forces the conversation before it ships.
+       */
+      const ALLOWED = [
+        // The fixed position of a building. Not a person.
+        'clinic',
+        // Check-in and check-out. Two rows per visit, no trail.
+        'visit_event',
+        // An exception the rep opted to attach their position to — it is
+        // nullable, and sick leave is filed from home with no coordinates
+        // at all. Added in Phase 5; see migration 0019.
+        'visit_exception',
+      ].sort();
+
       const rows = await asSuperuser<{ table_name: string; column_name: string }>(
         `SELECT table_name, column_name
            FROM information_schema.columns
@@ -728,9 +745,17 @@ describe.skipIf(!DB_AVAILABLE)('check-in and check-out', () => {
       );
 
       const tables = [...new Set(rows.map((r) => r.table_name))].sort();
-      // clinic  — the fixed location of a building, not a person.
-      // visit_event — check-in and check-out only.
-      expect(tables).toEqual(['clinic', 'visit_event']);
+      expect(tables).toEqual(ALLOWED);
+    });
+
+    it('keeps exception location OPTIONAL — reporting sick leave needs no coordinates', async () => {
+      const columns = await asSuperuser<{ column_name: string; is_nullable: string }>(
+        `SELECT column_name, is_nullable FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'visit_exception'
+            AND column_name IN ('request_latitude', 'request_longitude')`,
+      );
+      expect(columns).toHaveLength(2);
+      expect(columns.every((c) => c.is_nullable === 'YES')).toBe(true);
     });
 
     it('produces exactly two location rows per completed visit — no trail', async () => {

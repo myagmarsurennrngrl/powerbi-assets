@@ -241,13 +241,10 @@ export default function StartVisitScreen() {
       {offerException ? (
         <View style={styles.exceptionBox}>
           <Text style={styles.exceptionText}>{mn.startVisit.exceptionHint}</Text>
-          {/*
-            The exception workflow itself is Phase 5. Saying so is better than
-            a button that does nothing when someone is genuinely stuck.
-          */}
-          <Text style={styles.exceptionPending}>
-            {mn.today.exception} · {mn.common.notImplemented} (5-р шат)
-          </Text>
+          <SecondaryButton
+            label={mn.today.exception}
+            onPress={() => router.push(`/visit/${id}/exception`)}
+          />
         </View>
       ) : null}
 
@@ -343,7 +340,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   exceptionText: { ...typography.body, color: colors.info, lineHeight: 21 },
-  exceptionPending: { ...typography.caption, color: colors.info, fontWeight: '700' },
 
   notice: { ...typography.caption, color: colors.textMuted, textAlign: 'center', lineHeight: 18 },
 });

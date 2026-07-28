@@ -173,6 +173,7 @@ export default function TodayScreen() {
           onOpenDetail={() => router.push(`/visit/${item.planned_visit_id}`)}
           onStart={() => router.push(`/visit/${item.planned_visit_id}/start`)}
           onOpenActive={() => router.push(`/visit/${item.planned_visit_id}/active`)}
+          onException={() => router.push(`/visit/${item.planned_visit_id}/exception`)}
         />
       )}
     />
@@ -186,6 +187,7 @@ function RouteCard({
   onOpenDetail,
   onStart,
   onOpenActive,
+  onException,
 }: {
   stop: RouteStop;
   origin: { latitude: number; longitude: number } | null;
@@ -193,6 +195,7 @@ function RouteCard({
   onOpenDetail: () => void;
   onStart: () => void;
   onOpenActive: () => void;
+  onException: () => void;
 }) {
   const distance = origin
     ? haversineMetres(origin, { latitude: Number(stop.latitude), longitude: Number(stop.longitude) })
@@ -263,7 +266,10 @@ function RouteCard({
         see the distance and accuracy before committing.
       */}
       {stop.status === 'planned' ? (
-        <PrimaryButton label={mn.today.startVisit} onPress={onStart} />
+        <>
+          <PrimaryButton label={mn.today.startVisit} onPress={onStart} />
+          <SecondaryButton label={mn.today.exception} onPress={onException} />
+        </>
       ) : null}
       {stop.status === 'in_progress' ? (
         <PrimaryButton label={mn.activeVisit.openActive} onPress={onOpenActive} />

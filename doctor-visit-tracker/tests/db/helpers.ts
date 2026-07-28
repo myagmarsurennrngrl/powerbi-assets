@@ -192,6 +192,9 @@ export const USERS = {
   manager3: 'manager03@monos.mn',
   rep1: 'rep01@monos.mn',
   rep2: 'rep02@monos.mn',
+  rep3: 'rep03@monos.mn',
   rep4: 'rep04@monos.mn',
+  rep5: 'rep05@monos.mn',
+  rep6: 'rep06@monos.mn',
   rep7: 'rep07@monos.mn',
 } as const;

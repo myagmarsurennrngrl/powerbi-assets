@@ -29,7 +29,7 @@ function TabIcon({ symbol, focused }: { symbol: string; focused: boolean }) {
 }
 
 export default function TabsLayout() {
-  const { profile } = useSession();
+  const { profile, isManager } = useSession();
   const isRep = profile?.role === 'representative';
 
   return (
@@ -74,11 +74,38 @@ export default function TabsLayout() {
       />
 
       <Tabs.Screen
+        name="kpi"
+        options={{
+          title: mn.tabs.kpi,
+          headerTitle: mn.kpi.title,
+          tabBarIcon: ({ focused }) => <TabIcon symbol="📊" focused={focused} />,
+          href: isRep ? undefined : null,
+        }}
+      />
+
+      {/* The manager's daily job: decide the pending requests. */}
+      <Tabs.Screen
+        name="exceptions"
+        options={{
+          title: mn.tabs.exceptions,
+          headerTitle: mn.exception.queueTitle,
+          tabBarIcon: ({ focused }) => <TabIcon symbol="📝" focused={focused} />,
+          href: isManager ? undefined : null,
+        }}
+      />
+
+      {/*
+        A representative's five are: home, today, week, KPI, settings. Doctors
+        is a reference screen reached from Home and from a visit, so it leaves
+        the bar for them — but it IS a manager's main destination.
+      */}
+      <Tabs.Screen
         name="doctors"
         options={{
           title: mn.tabs.doctors,
           headerTitle: mn.doctors.title,
           tabBarIcon: ({ focused }) => <TabIcon symbol="👩‍⚕️" focused={focused} />,
+          href: isRep ? null : undefined,
         }}
       />
       <Tabs.Screen
