@@ -65,7 +65,20 @@ ALTER TABLE public.visit_status_history ENABLE TRIGGER trg_visit_status_history_
 -- re-runnable: the first run flips those rows to 'completed', and a second run
 -- must still find them rather than silently producing nothing.
 -- -----------------------------------------------------------------------------
-CREATE TEMP TABLE tmp_completed ON COMMIT DROP AS
+-- A REAL table, not a TEMP one, and deliberately so.
+--
+-- A temp table lives in one session and `ON COMMIT DROP` removes it the moment
+-- its transaction ends. That is fine under `psql -f`, which runs the whole file
+-- in one session and one transaction — and it BREAKS in the Supabase SQL
+-- editor, which sends statements separately over a pooled connection. The
+-- table was created and dropped before the next statement could read it:
+--   ERROR: relation "tmp_completed" does not exist
+--
+-- A plain table survives either way. It is dropped again at the foot of this
+-- file, and dropped defensively above in case a previous run died partway.
+DROP TABLE IF EXISTS public.seed_tmp_completed;
+
+CREATE TABLE public.seed_tmp_completed AS
 SELECT
   pv.id                          AS planned_visit_id,
   pv.rep_id,
@@ -166,7 +179,7 @@ SELECT
   (t.rn % 4 = 0),
   CASE WHEN t.rn % 4 = 0 THEN t.planned_date + 21 END,
   '0.1.0'
-FROM tmp_completed t;
+FROM public.seed_tmp_completed t;
 
 -- -----------------------------------------------------------------------------
 -- Check-in events.
@@ -199,7 +212,7 @@ SELECT
   v.created_source,
   (t.rn % 137 = 0),                         -- a single mocked-location example
   ev.distance > t.geofence_radius_m
-FROM tmp_completed t
+FROM public.seed_tmp_completed t
 JOIN public.visit v ON v.planned_visit_id = t.planned_visit_id
 CROSS JOIN LATERAL (
   SELECT
@@ -243,7 +256,7 @@ SELECT
   v.created_source,
   false,
   ev.distance > t.geofence_radius_m
-FROM tmp_completed t
+FROM public.seed_tmp_completed t
 JOIN public.visit v ON v.planned_visit_id = t.planned_visit_id
 CROSS JOIN LATERAL (
   SELECT
@@ -289,6 +302,10 @@ UPDATE public.planned_visit pv
   FROM public.visit v
  WHERE v.planned_visit_id = pv.id
    AND pv.status <> 'completed';
+
+-- Scratch table gone. It has no row-level security, so leaving it behind would
+-- (correctly) be reported by fn_security_findings().
+DROP TABLE IF EXISTS public.seed_tmp_completed;
 
 COMMIT;
 

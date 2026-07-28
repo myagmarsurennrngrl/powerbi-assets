@@ -240,14 +240,18 @@ GRANT EXECUTE ON FUNCTION public.fn_admin_set_user_active(uuid, boolean, text)
 --   * the reporting login picking up access outside its schema.
 -- -----------------------------------------------------------------------------
 
-/**
- * Tables where DELETE is legitimately granted to the application.
- *
- * These are child lists — the doctors on a planned visit, the brands on a
- * visit. Editing such a list means replacing it, so DELETE is the verb.
- * Nothing here is a record of something that happened; those are all
- * append-only and appear nowhere in this list.
- */
+-- Tables where DELETE is legitimately granted to the application.
+--
+-- These are child lists — the doctors on a planned visit, the brands on a
+-- visit. Editing such a list means replacing it, so DELETE is the verb.
+-- Nothing here is a record of something that happened. Those are all
+-- append-only and appear nowhere in this list.
+--
+-- NOTE the comment style. Every SQL file in this project uses `--` line
+-- comments, and this file briefly did not. A `/* */` block containing a
+-- semicolon breaks any tool that splits a script on semicolons — including,
+-- possibly, the Supabase SQL editor an administrator pastes into. Caught by
+-- scripts/check-statement-safe.mjs.
 CREATE OR REPLACE FUNCTION public.fn_delete_allowlist()
 RETURNS TABLE (table_name text)
 LANGUAGE sql

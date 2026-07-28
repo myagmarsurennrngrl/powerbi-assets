@@ -102,6 +102,7 @@ npm run test:watch              # re-run on change
 npm run typecheck               # app and tests
 npx expo export --platform android    # prove the bundle builds
 node scripts/db-provision.mjs         # rebuild the test database
+npm run db:check-statements           # SQL must survive being run one statement at a time
 ```
 
 Before pushing, the three that matter: `npm test`, `npm run typecheck`, and one `expo export`.
@@ -163,6 +164,18 @@ qualify everything: `public.similarity(...)`, `value::public.citext`, or compare
 **Revoking from `anon` does not remove a privilege held through `PUBLIC`.** This shipped for six
 phases and let an unauthenticated caller forge audit entries. See migration `0025` and
 `tests/db/security.test.ts`.
+
+**SQL that only works under `psql` is not good enough.** `psql -f` runs a file in one session and
+one transaction. The Supabase SQL editor — the route the setup guide gives a non-technical
+administrator — sends statements separately, so session state does not carry over. A seed using
+`CREATE TEMP TABLE ... ON COMMIT DROP` passed every test and failed for the first person who
+pasted it in. Two rules follow:
+
+* no temp tables, no `SET LOCAL`, nothing that assumes one session across statements;
+* no semicolon inside a `/* */` comment — use `--` line comments, as every file here does.
+
+`npm run db:check-statements` replays every migration and seed with each statement on its own
+connection and then checks the resulting data matches. Run it after touching any `.sql` file.
 
 ---
 
