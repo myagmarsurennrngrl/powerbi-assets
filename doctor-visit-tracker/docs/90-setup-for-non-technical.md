@@ -112,12 +112,23 @@ scripts by default, and npm is a script.
 simplest answer is to use a window where it does not exist. Everything in this guide works there
 unchanged.
 
-1. Press **Start**, type `cmd`, press Enter.
-2. Move into the folder — note the `/d`, which Command Prompt needs to change drive:
+> **They are two different programs that look almost identical.** Tell them apart by the prompt:
+>
+> | | Prompt looks like |
+> |---|---|
+> | PowerShell | `PS C:\Users\you>` — starts with **`PS`** |
+> | Command Prompt | `C:\Users\you>` — no `PS` |
+>
+> Commands are not interchangeable. `cd /d` works only in Command Prompt; PowerShell answers
+> *"A positional parameter cannot be found"*. Pick one window and stay in it.
+
+1. Press **Windows key + R**, type `cmd`, press Enter.
+2. Check the prompt has no `PS` in front of it.
+3. Move into the folder — `/d` lets it change drive:
    ```
    cd /d "C:\dev\powerbi-assets-...\doctor-visit-tracker"
    ```
-3. `npm install`
+4. `npm install`
 
 Use Command Prompt for the rest of the setup.
 
@@ -148,9 +159,17 @@ for your account only, with no administrator rights. Undo it with
 
 ##### Staying in PowerShell anyway
 
-Add `.cmd` to every command: `npm.cmd install`, `npx.cmd ...`. This always works, because `.cmd`
-files are not PowerShell scripts. You have to remember it every single time, which is why
-switching to Command Prompt is easier.
+Add `.cmd` to `npm` and `npx` every time — `npm.cmd install`, `npx.cmd expo start`. This always
+works, because `.cmd` files are not PowerShell scripts. Remember also that PowerShell's `cd` takes
+no `/d`:
+
+```powershell
+cd "C:\dev\powerbi-assets-...\doctor-visit-tracker"
+npm.cmd install
+```
+
+You have to remember `.cmd` on every command for the rest of the setup, which is why Command
+Prompt is the easier route.
 
 ---
 
