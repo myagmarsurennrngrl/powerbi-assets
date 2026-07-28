@@ -85,6 +85,14 @@ BEGIN
   v_email := lower(btrim(v_email));
   v_today := public.fn_local_date();
 
+  -- This file reads auth.users directly, so it only makes sense against a
+  -- Supabase database. Said plainly rather than left as "relation auth.users
+  -- does not exist" forty lines further down.
+  IF to_regclass('auth.users') IS NULL THEN
+    RAISE EXCEPTION
+      'auth.users байхгүй байна. Энэ файлыг Supabase-ийн SQL editor дээр ажиллуулна уу.';
+  END IF;
+
   -- ---------------------------------------------------------------------------
   -- 1. Is the address allowed to sign in at all?
   --
@@ -143,11 +151,40 @@ BEGIN
   -- they have not, 0006's trigger links it when they do. Both directions are
   -- covered; that is the whole point of 0026.
   -- ---------------------------------------------------------------------------
+  -- auth_user_id is cleared as part of the rename, then set from the NEW
+  -- address. Both halves matter.
+  --
+  -- Leaving it alone was a bug. On a database where rep01 had already signed
+  -- in, auth_user_id still pointed at the login for rep01@monos.mn. 0026's
+  -- adopt trigger deliberately does not touch a row that is already linked, so
+  -- nothing corrected it. The tester then signed in, got their own login id,
+  -- and the app looked for an app_user carrying that id — of which there was
+  -- none. Result: «Таны бүртгэл идэвхжээгүй байна», from an account that looks
+  -- perfectly correct in every column an administrator would think to read.
+  --
+  -- Any other row holding the target login is cleared first: auth_user_id is
+  -- UNIQUE, so a leftover claim makes the statement below fail outright.
+  UPDATE public.app_user u
+     SET auth_user_id = NULL
+    FROM auth.users a
+   WHERE u.auth_user_id = a.id
+     AND lower(a.email) = v_email
+     AND u.id <> v_rep_id;
+
   UPDATE public.app_user
      SET email          = v_email::citext,
          is_active      = true,
-         deactivated_at = NULL
+         deactivated_at = NULL,
+         auth_user_id   = NULL
    WHERE id = v_rep_id;
+
+  -- Done explicitly rather than left to 0026's trigger, so this file also
+  -- repairs a database where 0026 has not been applied.
+  UPDATE public.app_user u
+     SET auth_user_id = a.id
+    FROM auth.users a
+   WHERE u.id = v_rep_id
+     AND lower(a.email) = v_email;
 
   SELECT auth_user_id IS NOT NULL INTO v_auth_linked
     FROM public.app_user WHERE id = v_rep_id;

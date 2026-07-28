@@ -118,6 +118,81 @@ describe.skipIf(!DB_AVAILABLE)('account linking', () => {
   });
 
   // ===========================================================================
+  /**
+   * Changing an address that is ALREADY linked.
+   *
+   * 0026's trigger deliberately leaves a linked row alone — re-pointing an
+   * existing link on any email write would be a way to hijack an account. The
+   * consequence is that whoever changes an email owns auth_user_id too.
+   *
+   * Missing that broke test-setup-single-user.sql: it renamed rep01 to the
+   * tester's address and left auth_user_id on rep01's old login. The tester
+   * signed in, the app looked up their own login id, found no app_user
+   * carrying it, and showed «Таны бүртгэл идэвхжээгүй байна» — from a row that
+   * reads as perfectly correct in every column an administrator would check.
+   */
+  describe('an email change on an already-linked account', () => {
+    it('leaves the OLD link in place — the trap', async () => {
+      await inRolledBackTransaction(async () => {
+        await asSuperuser(`INSERT INTO auth.users (email) VALUES ('before@monos.mn')`);
+        await asSuperuser(`INSERT INTO auth.users (email) VALUES ('after@monos.mn')`);
+        await asSuperuser(
+          `INSERT INTO public.app_user (email, full_name, role)
+           VALUES ('before@monos.mn', 'Хаяг Солих', 'representative')`,
+        );
+
+        await asSuperuser(
+          `UPDATE public.app_user SET email = 'after@monos.mn' WHERE email = 'before@monos.mn'`,
+        );
+
+        const [row] = await asSuperuser<{ stale: boolean }>(
+          `SELECT u.auth_user_id <> (SELECT id FROM auth.users WHERE email = 'after@monos.mn')
+             AS stale
+           FROM public.app_user u WHERE u.email = 'after@monos.mn'`,
+        );
+        // Documented, not desired: re-pointing on any email write would be an
+        // account-takeover route. The caller must clear auth_user_id itself.
+        expect(row.stale).toBe(true);
+      });
+    });
+
+    it('links correctly when auth_user_id is cleared in the same statement', async () => {
+      // What test-setup-single-user.sql now does.
+      await inRolledBackTransaction(async () => {
+        await asSuperuser(`INSERT INTO auth.users (email) VALUES ('old@monos.mn')`);
+        await asSuperuser(`INSERT INTO auth.users (email) VALUES ('new@monos.mn')`);
+        await asSuperuser(
+          `INSERT INTO public.app_user (email, full_name, role)
+           VALUES ('old@monos.mn', 'Зөв Солих', 'representative')`,
+        );
+
+        await asSuperuser(
+          `UPDATE public.app_user SET email = 'new@monos.mn', auth_user_id = NULL
+            WHERE email = 'old@monos.mn'`,
+        );
+
+        const [row] = await asSuperuser<{ correct: boolean }>(
+          `SELECT u.auth_user_id = (SELECT id FROM auth.users WHERE email = 'new@monos.mn')
+             AS correct
+           FROM public.app_user u WHERE u.email = 'new@monos.mn'`,
+        );
+        expect(row.correct).toBe(true);
+      });
+    });
+
+    it('fn_admin_update_user cannot cause it — it does not touch email', async () => {
+      // The guard on the above. If email editing is ever added to the admin
+      // function, this fails and points at auth_user_id as the thing to handle.
+      const [row] = await asSuperuser<{ touches_email: boolean }>(
+        `SELECT pg_get_functiondef(p.oid) ~* '\\mSET\\M[^;]*\\memail\\M' AS touches_email
+           FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+          WHERE n.nspname = 'public' AND p.proname = 'fn_admin_update_user'`,
+      );
+      expect(row.touches_email).toBe(false);
+    });
+  });
+
+  // ===========================================================================
   describe('the repair function', () => {
     it('links an account that is already stuck, and says so', async () => {
       await inRolledBackTransaction(async () => {
