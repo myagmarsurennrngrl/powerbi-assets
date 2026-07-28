@@ -74,10 +74,16 @@ Nothing is at risk in doing this — the real copy is on GitHub.
 **Now move into the folder in the Terminal.**
 
 * **macOS:** type `cd ` (with a space), then drag the folder onto the Terminal window, press Enter.
-* **Windows:** type `cd `, then paste the full path **in quotes**, press Enter:
+* **Windows (PowerShell):** type `cd `, then paste the full path **in quotes**, press Enter:
   ```powershell
   cd "C:\dev\powerbi-assets-...\doctor-visit-tracker"
   ```
+* **Windows (Command Prompt):** the same, but with `/d` so it can change drive:
+  ```
+  cd /d "C:\dev\powerbi-assets-...\doctor-visit-tracker"
+  ```
+  If npm gives you a "not digitally signed" error later, Command Prompt is the window you want —
+  see A3.
 
 > **You need the inner `doctor-visit-tracker` folder, not the outer one.** The repository holds
 > the app in a subfolder. If you stop at the outer folder, the next step fails with
@@ -99,26 +105,52 @@ Red text saying `ERR!` is not normal — send it to a developer.
 
 #### Windows: "npm.ps1 cannot be loaded ... is not digitally signed"
 
-This is the most common first error on Windows, and it is **not** a problem with the project.
-Windows blocks PowerShell from running scripts by default, and npm is a script.
+The most common first error on Windows, and **not** a problem with the project. PowerShell blocks
+scripts by default, and npm is a script.
 
-Paste this once, answer `Y`, then run `npm install` again:
+**Use Command Prompt instead of PowerShell.** This restriction applies only to PowerShell, so the
+simplest answer is to use a window where it does not exist. Everything in this guide works there
+unchanged.
+
+1. Press **Start**, type `cmd`, press Enter.
+2. Move into the folder — note the `/d`, which Command Prompt needs to change drive:
+   ```
+   cd /d "C:\dev\powerbi-assets-...\doctor-visit-tracker"
+   ```
+3. `npm install`
+
+Use Command Prompt for the rest of the setup.
+
+##### Why not just change the PowerShell setting?
+
+You may see this advice elsewhere:
 
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ```
 
-**What it does:** allows scripts you installed yourself (like npm) to run, while still blocking
-unsigned scripts downloaded from the internet. It applies to your user account only, needs no
-administrator rights, and is the setting Microsoft recommends for development machines.
+**On a company laptop it usually does nothing.** Execution policy has five levels, and the two set
+centrally by IT (`MachinePolicy` and `UserPolicy`) outrank anything you set for yourself. The
+command is accepted without an error and then ignored — which is more confusing than the original
+problem. Check with:
 
-To undo it later: `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Undefined`.
+```powershell
+Get-ExecutionPolicy -List
+```
 
-#### If you would rather change no settings at all
+If `MachinePolicy` or `UserPolicy` is anything other than `Undefined`, that is your IT department's
+setting and you cannot override it. Use Command Prompt.
 
-Add `.cmd` to every command — `npm.cmd install` instead of `npm install`, `npx.cmd` instead of
-`npx`. This works, but you must remember it every single time, which is why the setting above is
-the better answer.
+On a personal machine, where those two are `Undefined`, the command does work and is safe: it
+allows scripts you installed yourself to run while still blocking unsigned ones from the internet,
+for your account only, with no administrator rights. Undo it with
+`Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Undefined`.
+
+##### Staying in PowerShell anyway
+
+Add `.cmd` to every command: `npm.cmd install`, `npx.cmd ...`. This always works, because `.cmd`
+files are not PowerShell scripts. You have to remember it every single time, which is why
+switching to Command Prompt is easier.
 
 ---
 
