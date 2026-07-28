@@ -419,10 +419,47 @@ A large QR code appears.
 
 The app opens on the phone. To stop it, click the Terminal and press **Ctrl + C**.
 
-### D4. Log in
+### D4. Make the email contain a CODE, not a link ← do this before D5
+
+**Supabase does not send a 6-digit code by default. It sends a link.** Its
+stock templates are written for a website, where clicking a link in the same
+browser signs you in. This is a phone app: there is no browser session to land
+in, and the login screen has six boxes waiting for six digits. The link is
+useless to it — and the long `token=2945baa2…` in that link is a different kind
+of token, so no code can be extracted from it either.
+
+Left unchanged, the app is correct, the email arrives, and login is impossible.
+
+Fix it in **Authentication → Emails → Templates**:
+
+```
+https://supabase.com/dashboard/project/<your-ref>/auth/templates
+```
+
+Edit **two** templates — **Confirm signup** and **Magic Link** — replacing the
+whole body of each with:
+
+```html
+<h2>Эмчийн уулзалтын бүртгэл</h2>
+<p>Таны нэвтрэх код:</p>
+<p style="font-size:32px;font-weight:bold;letter-spacing:8px;font-family:monospace">{{ .Token }}</p>
+<p>Энэ кодыг аппын дэлгэц дээрх 6 нүдэнд оруулна уу.</p>
+<p style="color:#888;font-size:13px">Хэрэв та код хүсээгүй бол энэ захидлыг үл тоомсорлоно уу.</p>
+```
+
+`{{ .Token }}` is the 6-digit code. Copy it exactly, braces and spacing
+included.
+
+Both templates matter: Supabase sends **Confirm signup** to somebody who has
+never confirmed an address, and **Magic Link** to everybody after that. Fixing
+only the first works once and then breaks again on the next login — and with
+the free-tier limit below, that mistake costs an hour.
+
+### D5. Log in
 1. Type a work email that exists in `app_user`.
 2. Tap **Код авах**.
-3. Check that inbox for a 6-digit code (check spam).
+3. Check that inbox for a 6-digit code (check spam, and on a corporate domain
+   check the mail filter's quarantine — it is not always in Junk).
 4. Type the code and tap **Нэвтрэх**.
 
 > **Free-tier email limit:** Supabase's built-in email sender is limited to a few messages per hour and is meant for testing only. Before real use, connect your company email server: **Authentication → Emails → SMTP Settings**. This is listed in `docs/95-known-limitations.md`.
@@ -450,7 +487,10 @@ Log in as a representative. Open Эмнэлгүүд → any clinic.
 | `command not found: npm` | Node.js is not installed | Redo step A1, then restart the computer |
 | `Аппын тохиргоо дутуу байна` | The app cannot find `.env` | Check the file is named exactly `.env` and sits next to `package.json` |
 | `... does not exist` in Supabase | A migration was skipped, or only part of one ran | Run `supabase/check-migrations.sql` — it names the exact file to run next |
-| No code arrives by email | Supabase's test email limit, or spam folder | Wait an hour, or set up SMTP (Part D3 note) |
+| The email contains a **link**, not 6 digits | The Supabase email templates are untouched | Do step D4 — both templates |
+| No email at all, but Supabase shows `confirmation_sent_at` | Delivered but filtered — on a corporate domain, usually held in the mail filter's quarantine, which is not the Junk folder | Ask IT to release it and allow `mail.app.supabase.io`; check **Logs → Auth Logs** for the send result |
+| `email rate limit exceeded` | The free sender allows a couple per hour **for the whole project** — colleagues testing at the same time share that budget | Wait an hour, or set up SMTP (D5 note). **Authentication → Rate Limits** shows the number |
+| No code arrives by email | Supabase's test email limit, or spam folder | Wait an hour, or set up SMTP (D5 note) |
 | «Таны бүртгэл идэвхжээгүй байна» | Login worked, but no `app_user` row | Do step B6 for that person |
 | App shows no clinics at all | Seed not loaded, or user not provisioned | Check B3 and B6 |
 

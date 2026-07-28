@@ -62,6 +62,11 @@ Supabase → **Authentication**:
 * **Providers → Email:** enabled. **Disable "Confirm email"** — the app uses one-time codes, not
   confirmation links.
 * **Providers:** disable every other provider. Anything enabled is a way in.
+* **Emails → Templates:** edit **Confirm signup** AND **Magic Link** so the body contains
+  `{{ .Token }}`. Both ship with a confirmation *link* instead, which a phone app cannot use —
+  the email arrives, the app is correct, and nobody can log in. See D4 in
+  `docs/90-setup-for-non-technical.md` for the exact template text. Fixing only one of the two
+  works for a person's first login and breaks on their second.
 * **URL Configuration → Site URL:** the app scheme from `app.json`.
 * **Emails → SMTP Settings:** connect the company mail server. Supabase's built-in sender is
   limited to a few messages an hour and is for testing only. Seven representatives signing in on
