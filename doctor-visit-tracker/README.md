@@ -15,8 +15,8 @@ managers get visibility and KPIs; the data feeds Power BI.
 
 | | |
 |---|---|
-| **Phase** | 3 of 7 complete — see [`docs/PHASE-3-STATUS.md`](docs/PHASE-3-STATUS.md) |
-| **Tests** | 191 passing |
+| **Phase** | 4 of 7 complete — see [`docs/PHASE-4-STATUS.md`](docs/PHASE-4-STATUS.md) |
+| **Tests** | 221 passing |
 | **Platforms** | iOS and Android bundles verified |
 | **Audio recording** | Not implemented. Flag off. No recording code exists. |
 
@@ -24,10 +24,11 @@ Phase 1 delivered authentication, roles, row-level security, the audit log, and 
 data. Phase 2 adds weekly planning, the plan status machine with a Friday-18:00 submission
 deadline, duplicate-visit prevention, and today's route with opt-in distance. Phase 3 adds the
 evidence layer: geofenced check-in with all eight conditions enforced server-side, an active-visit
-timer driven by the server clock, and check-out. Visit documentation, KPI, manager dashboards and
-offline support are Phases 4–7.
+timer driven by the server clock, and check-out. Phase 4 adds the structured visit report, immutable
+once submitted, corrections as separate addenda, and the shared doctor history every representative
+reads. Exceptions, KPI, manager dashboards and offline support are Phases 5–7.
 
-Phase reports: [Phase 1](docs/PHASE-1-STATUS.md) · [Phase 2](docs/PHASE-2-STATUS.md) · [Phase 3](docs/PHASE-3-STATUS.md)
+Phase reports: [1](docs/PHASE-1-STATUS.md) · [2](docs/PHASE-2-STATUS.md) · [3](docs/PHASE-3-STATUS.md) · [4](docs/PHASE-4-STATUS.md)
 
 ---
 
@@ -70,7 +71,7 @@ npm start                   # scan the QR code with Expo Go
 ```
 
 ```bash
-npm test                    # 191 tests (skips DB tests if no PostgreSQL is running)
+npm test                    # 221 tests (skips DB tests if no PostgreSQL is running)
 npm run typecheck           # app + tests
 node scripts/db-provision.mjs   # rebuild a local test database from scratch
 ```

@@ -21,7 +21,6 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-  NotImplemented,
   Pill,
   PrimaryButton,
 } from '../../../src/components/ui';
@@ -183,13 +182,9 @@ export default function ActiveVisitScreen() {
             <Pill label={mn.activeVisit.awaitingReport} tone="warning" />
             <Text style={styles.doneText}>{mn.activeVisit.awaitingReportHint}</Text>
           </View>
-          {/*
-            The structured completion form is Phase 4. Check-out time and
-            location are already recorded, so nothing is lost by waiting.
-          */}
-          <NotImplemented
-            what="Уулзалт дуусгах тайлан"
-            hint="Уулзсан эмч, үр дүн, дараагийн үйлдэл зэрэг бүтэцтэй маягт 4-р шатанд нэмэгдэнэ."
+          <PrimaryButton
+            label={mn.completeVisit.title}
+            onPress={() => router.push(`/report/${visit.visit_id}`)}
           />
         </>
       ) : (

@@ -48,12 +48,10 @@ async function givenPlannedVisitToday(
   email: string,
   clinicCode = CLINIC_CODE,
 ): Promise<string> {
-  // Retire any earlier scaffolding visit for the same rep, clinic and day.
-  //
-  // Without this, the second call would either trip the duplicate-doctor rule
-  // or (worse) silently produce a visit with no doctors at all — invalid data
-  // that other test files then trip over. Cancelled visits are excluded from
-  // the duplicate rule, so this frees the doctor up again.
+  // Retire EVERY scaffolding visit this rep has at this clinic today —
+  // including ones created by the other test file. Two helpers both booking
+  // CL-001 would otherwise exhaust the planned_order cap and collide on the
+  // duplicate-doctor rule. Cancelled visits are excluded from that rule.
   await asSuperuser(
     `UPDATE public.planned_visit pv
         SET status = 'cancelled_unapproved'
@@ -62,7 +60,7 @@ async function givenPlannedVisitToday(
         AND u.email = $1
         AND pv.clinic_id = (SELECT id FROM public.clinic WHERE code = $2)
         AND pv.planned_date = public.fn_local_date()
-        AND pv.objective = 'тестийн уулзалт'
+        AND pv.objective IN ('тестийн уулзалт', 'тайлангийн тест')
         AND pv.status NOT IN ('cancelled_unapproved', 'cancelled_approved', 'completed')`,
     [email, clinicCode],
   );
@@ -80,7 +78,8 @@ async function givenPlannedVisitToday(
      SELECT plan.id, rep.id,
             (SELECT id FROM public.clinic WHERE code = $2),
             public.fn_local_date(),
-            (SELECT COALESCE(max(planned_order), 0) + 1
+            -- planned_order is capped at 50 by constraint.
+            (SELECT LEAST(COALESCE(max(planned_order), 0) + 1, 50)
                FROM public.planned_visit pv, rep
               WHERE pv.rep_id = rep.id AND pv.planned_date = public.fn_local_date()),
             'тестийн уулзалт'

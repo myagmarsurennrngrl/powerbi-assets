@@ -81,6 +81,7 @@ function RootNavigator() {
           gestureEnabled: false,
         }}
       />
+      <Stack.Screen name="report/[visitId]" options={{ title: mn.completeVisit.title }} />
       <Stack.Screen name="route/[date]" options={{ title: mn.week.title }} />
     </Stack>
   );

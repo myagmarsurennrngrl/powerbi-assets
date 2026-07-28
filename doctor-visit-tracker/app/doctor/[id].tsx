@@ -1,13 +1,10 @@
 /**
  * Screen 14 — Эмчийн профайл ба уулзалтын түүх (Doctor profile and visit history)
  *
- * PHASE 1 SCOPE
- * -------------
- * The profile and the clinic list are real and working. The visit history and
- * its five filters need the visit tables from Phases 3 and 4, so that section
- * is explicitly labelled as not yet implemented rather than shown as an empty
- * list — an empty list would wrongly suggest "this doctor has never been
- * visited".
+ * Profile, the clinics this doctor works at, and the SHARED visit history —
+ * every representative's submitted visits to this doctor, with the five
+ * filters from the brief. Read-only: corrections appear as separate addenda
+ * beneath their visit, never as edits to the original.
  */
 import React, { useCallback } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -19,10 +16,10 @@ import {
   ErrorState,
   Field,
   LoadingState,
-  NotImplemented,
   Pill,
   Section,
 } from '../../src/components/ui';
+import { DoctorHistory } from '../../src/components/DoctorHistory';
 import { mn } from '../../src/lib/i18n/mn';
 import { weekdayMn } from '../../src/lib/i18n/enums';
 import { colors, radius, spacing, typography } from '../../src/theme';
@@ -126,10 +123,7 @@ export default function DoctorDetailScreen() {
       </Section>
 
       <Section title={mn.doctors.visitHistory}>
-        <NotImplemented
-          what={mn.doctors.visitHistory}
-          hint="Бүх төлөөлөгчийн илгээсэн уулзалтын түүх, 5 шүүлтүүрийн хамт 4-р шатанд нэмэгдэнэ."
-        />
+        <DoctorHistory doctorId={doctor.id} />
       </Section>
     </ScrollView>
   );
