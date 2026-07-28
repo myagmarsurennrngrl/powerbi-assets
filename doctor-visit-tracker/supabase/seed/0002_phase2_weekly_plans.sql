@@ -25,12 +25,45 @@
 
 BEGIN;
 
--- Clear previous planning seed (children first).
+-- -----------------------------------------------------------------------------
+-- Clear the previous planning seed — and everything that hangs off it.
+--
+-- A visit points at the planned visit it came from, so the visits seeded by
+-- 0003 must go before any planned visit can. Deleting only the planning tables
+-- worked while 0003 did not exist; re-running this file afterwards failed on
+-- the foreign key.
+--
+-- The append-only triggers are disabled for the deletes and restored
+-- immediately. That needs table ownership, which the application roles never
+-- have — see the longer note in seed 0001.
+-- -----------------------------------------------------------------------------
+ALTER TABLE public.visit                DISABLE TRIGGER trg_visit_no_delete;
+ALTER TABLE public.visit_event          DISABLE TRIGGER trg_visit_event_no_delete;
+ALTER TABLE public.visit_addendum       DISABLE TRIGGER trg_visit_addendum_no_delete;
+ALTER TABLE public.visit_status_history DISABLE TRIGGER trg_visit_status_history_no_delete;
+ALTER TABLE public.kpi_period_snapshot  DISABLE TRIGGER trg_kpi_snapshot_no_delete;
+
+DELETE FROM public.visit_product;
+DELETE FROM public.visit_brand;
+DELETE FROM public.visit_doctor;
+DELETE FROM public.visit_event;
+DELETE FROM public.visit_addendum;
+DELETE FROM public.visit_exception;
+DELETE FROM public.follow_up;
 DELETE FROM public.visit_status_history;
+DELETE FROM public.kpi_period_snapshot;
+DELETE FROM public.visit;
+
 DELETE FROM public.planned_visit_brand;
 DELETE FROM public.planned_visit_doctor;
 DELETE FROM public.planned_visit;
 DELETE FROM public.weekly_plan;
+
+ALTER TABLE public.visit                ENABLE TRIGGER trg_visit_no_delete;
+ALTER TABLE public.visit_event          ENABLE TRIGGER trg_visit_event_no_delete;
+ALTER TABLE public.visit_addendum       ENABLE TRIGGER trg_visit_addendum_no_delete;
+ALTER TABLE public.visit_status_history ENABLE TRIGGER trg_visit_status_history_no_delete;
+ALTER TABLE public.kpi_period_snapshot  ENABLE TRIGGER trg_kpi_snapshot_no_delete;
 
 -- -----------------------------------------------------------------------------
 -- Build the four plans per representative.

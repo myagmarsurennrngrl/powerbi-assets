@@ -17,23 +17,83 @@
 --   two representatives legitimately visit the same doctor)
 --
 -- Plans and visits are seeded in Phase 2/3.
--- Run AFTER all migrations. Safe to re-run: it clears its own data first.
+-- Run AFTER all migrations. Safe to re-run at ANY point: it performs a full
+-- reset of every seeded table, not just the Phase 1 ones.
 -- =============================================================================
 
 BEGIN;
 
 -- -----------------------------------------------------------------------------
--- Clear previous seed data (child tables first — every FK is ON DELETE RESTRICT)
+-- Clear ALL previous seed data.
+--
+-- This is a FULL reset, not a Phase 1 reset. Master data sits at the bottom of
+-- the dependency graph: a product is referenced by planned_visit_brand, a
+-- clinic by visit, a doctor by follow_up. Every foreign key is ON DELETE
+-- RESTRICT, so everything above must go first or nothing goes at all.
+--
+-- The original version of this file deleted only the Phase 1 tables, because
+-- Phase 1 was all that existed. Re-running it after seeds 0002 and 0003 then
+-- failed with:
+--     ERROR: 23503: update or delete on table "product" violates foreign key
+--     constraint "planned_visit_brand_product_id_fkey"
+--
+-- Order below is children first, then parents. Adding a table? It goes above
+-- whatever it points at.
+--
+-- ON DISABLING THE APPEND-ONLY TRIGGERS
+-- Visits, events, addenda, status history, KPI snapshots and the audit log are
+-- append-only, enforced by triggers as well as revoked grants. Disabling a
+-- trigger requires table OWNERSHIP, which the application roles (`anon`,
+-- `authenticated`) do not have and never will — so the immutability guarantee
+-- is untouched for every real user. A developer resetting a scratch database
+-- is not a threat model. The triggers are restored immediately below.
 -- -----------------------------------------------------------------------------
+ALTER TABLE public.visit                DISABLE TRIGGER trg_visit_no_delete;
+ALTER TABLE public.visit_event          DISABLE TRIGGER trg_visit_event_no_delete;
+ALTER TABLE public.visit_addendum       DISABLE TRIGGER trg_visit_addendum_no_delete;
+ALTER TABLE public.visit_status_history DISABLE TRIGGER trg_visit_status_history_no_delete;
+ALTER TABLE public.kpi_period_snapshot  DISABLE TRIGGER trg_kpi_snapshot_no_delete;
+ALTER TABLE public.audit_log            DISABLE TRIGGER trg_audit_log_no_delete;
+
+-- Visits and everything hanging off them (Phases 3-5)
+DELETE FROM public.visit_product;
+DELETE FROM public.visit_brand;
+DELETE FROM public.visit_doctor;
+DELETE FROM public.visit_event;
+DELETE FROM public.visit_addendum;
+DELETE FROM public.visit_exception;
+DELETE FROM public.follow_up;
+DELETE FROM public.visit_status_history;
+DELETE FROM public.kpi_period_snapshot;
+DELETE FROM public.visit;
+
+-- Planning (Phase 2)
+DELETE FROM public.planned_visit_brand;
+DELETE FROM public.planned_visit_doctor;
+DELETE FROM public.planned_visit;
+DELETE FROM public.weekly_plan;
+
+-- Master data (Phase 1)
 DELETE FROM public.rep_brand_assignment;
 DELETE FROM public.doctor_clinic;
 DELETE FROM public.product;
 DELETE FROM public.brand;
 DELETE FROM public.doctor;
 DELETE FROM public.clinic;
-DELETE FROM public.app_user;
+
+-- Identity last. audit_log goes after the master-data deletes above, because
+-- those fire audit triggers that write into it.
 DELETE FROM public.approved_email_domain;
 DELETE FROM public.audit_log;
+DELETE FROM public.app_user;
+
+-- Restore immediately. Everything after this line runs under the real rules.
+ALTER TABLE public.visit                ENABLE TRIGGER trg_visit_no_delete;
+ALTER TABLE public.visit_event          ENABLE TRIGGER trg_visit_event_no_delete;
+ALTER TABLE public.visit_addendum       ENABLE TRIGGER trg_visit_addendum_no_delete;
+ALTER TABLE public.visit_status_history ENABLE TRIGGER trg_visit_status_history_no_delete;
+ALTER TABLE public.kpi_period_snapshot  ENABLE TRIGGER trg_kpi_snapshot_no_delete;
+ALTER TABLE public.audit_log            ENABLE TRIGGER trg_audit_log_no_delete;
 
 -- -----------------------------------------------------------------------------
 -- Approved login domain

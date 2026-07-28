@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Are the migrations and seeds safe to run statement-by-statement?
+ * Are the migrations and seeds safe to run statement-by-statement, and safe to
+ * re-run?
  *
  * WHY THIS EXISTS
  * ---------------
@@ -161,8 +162,23 @@ for (const file of [...filesIn('supabase/migrations'), ...filesIn('supabase/seed
   console.log(`  · ${file.split('/').pop().padEnd(34)} ${String(n).padStart(3)} statements`);
 }
 
+// -----------------------------------------------------------------------------
+// Every seed must also be re-runnable against a FULLY POPULATED database.
+//
+// Each seed clears its own data first, but "its own" grew with every phase. The
+// Phase 1 seed deleted only Phase 1 tables, so re-running it once visits
+// existed failed on a foreign key from planned_visit_brand to product. Running
+// the seeds a second time, in order, is the shortest test that catches it.
+// -----------------------------------------------------------------------------
+console.log('\n▸ Re-running every seed against the populated database');
+for (const file of filesIn('supabase/seed')) {
+  const n = runSplit(file);
+  console.log(`  · ${file.split('/').pop().padEnd(34)} ${String(n).padStart(3)} statements (re-run)`);
+}
+
 // The point is not only that nothing errored — a silent no-op passes that.
-// These are the numbers `node scripts/db-provision.mjs` produces.
+// These are the numbers `node scripts/db-provision.mjs` produces, and a second
+// pass must land on exactly the same ones.
 const expected = { visit: 204, visit_event: 408, clinic: 15, doctor: 50 };
 const problems = [];
 
