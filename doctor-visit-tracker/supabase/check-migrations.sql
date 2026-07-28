@@ -47,7 +47,8 @@ WITH expected (seq, migration, kind, object, purpose) AS (
     (22, '0022_exports_and_dashboard', 'function', 'fn_manager_dashboard',       'Manager dashboard and exports'),
     (23, '0023_admin_management',      'function', 'fn_admin_users',             'User and master-data administration'),
     (24, '0024_unplanned_visits',      'function', 'fn_start_unplanned_visit',   'Unplanned visits'),
-    (25, '0025_security_hardening',    'function', 'fn_security_findings',       'Security hardening and self-check')
+    (25, '0025_security_hardening',    'function', 'fn_security_findings',       'Security hardening and self-check'),
+    (26, '0026_link_existing_logins',  'function', 'fn_diagnose_login',          'Login account linking and diagnosis')
 ),
 checked AS (
   SELECT
@@ -112,7 +113,8 @@ WITH expected (seq, migration, kind, object) AS (
     (22, '0022_exports_and_dashboard', 'function', 'fn_manager_dashboard'),
     (23, '0023_admin_management',      'function', 'fn_admin_users'),
     (24, '0024_unplanned_visits',      'function', 'fn_start_unplanned_visit'),
-    (25, '0025_security_hardening',    'function', 'fn_security_findings')
+    (25, '0025_security_hardening',    'function', 'fn_security_findings'),
+    (26, '0026_link_existing_logins',  'function', 'fn_diagnose_login')
 ),
 checked AS (
   SELECT e.seq, e.migration,
@@ -132,7 +134,7 @@ checked AS (
 SELECT
   CASE
     WHEN NOT EXISTS (SELECT 1 FROM checked WHERE NOT applied)
-      THEN 'All 25 migrations are applied. Next: the seed data, or Part C of the setup guide.'
+      THEN 'All 26 migrations are applied. Next: the seed data, or Part C of the setup guide.'
     ELSE 'Run this file next: supabase/migrations/'
          || (SELECT migration FROM checked WHERE NOT applied ORDER BY seq LIMIT 1)
          || '.sql  — then run this checker again.'
