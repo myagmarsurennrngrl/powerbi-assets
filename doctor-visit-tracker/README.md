@@ -16,7 +16,7 @@ managers get visibility and KPIs; the data feeds Power BI.
 | | |
 |---|---|
 | **Phase** | 2 of 7 complete — see [`docs/PHASE-2-STATUS.md`](docs/PHASE-2-STATUS.md) |
-| **Tests** | 127 passing |
+| **Tests** | 144 passing |
 | **Platforms** | iOS and Android bundles verified |
 | **Audio recording** | Not implemented. Flag off. No recording code exists. |
 
@@ -68,7 +68,7 @@ npm start                   # scan the QR code with Expo Go
 ```
 
 ```bash
-npm test                    # 127 tests (skips DB tests if no PostgreSQL is running)
+npm test                    # 144 tests (skips DB tests if no PostgreSQL is running)
 npm run typecheck           # app + tests
 node scripts/db-provision.mjs   # rebuild a local test database from scratch
 ```

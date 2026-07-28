@@ -17,10 +17,13 @@ Legend:
 | 3 | View weekly plans | own | ✓ all | ✓ all | RLS `weekly_plan` |
 | 4 | Create weekly plan | own | ✗ | ✗ | RLS INSERT policy |
 | 5 | Edit plan before deadline | own, status draft/rejected | ✗ | ✗ | RLS UPDATE + `fn_plan_editable()` |
-| 6 | Edit another rep's plan | ✗ | ✗ | ✗ | RLS |
+| 6 | Edit another rep's plan *header* (week, status, submission) | ✗ | ✗ (review fields only) | ✗ | RLS — see 9a for adding visits |
 | 7 | Submit plan | own | ✗ | ✗ | `fn_submit_plan()` |
 | 8 | Approve / reject plan | ✗ | ✓ team | ✓ | `fn_review_plan()` |
-| 9 | Reassign / reschedule a visit | ✗ | ✓ | ✓ | `fn_reschedule_visit()` |
+| 9 | Reschedule a visit to another date | ✗ | ✓ | ✓ | `fn_reschedule_visit()` |
+| 9a | **Add a visit directly to a representative's plan** | ✗ | ✓ | ✓ | `fn_manager_add_visit()` + RLS `planned_visit_insert_manager` |
+| 9b | Add a visit to a **locked** plan | ✗ | ✗ | ✗ | RLS (`status <> 'locked'`) |
+| 9c | Change another user's plan *without it being attributable* | ✗ | ✗ | ✗ | `trg_planned_visit_audit_foreign_change` |
 | **Visits** |
 | 10 | Start visit | own, planned, today, in-radius | ✗ | ✗ | `fn_start_visit()` |
 | 11 | Complete visit | own, in-progress | ✗ | ✗ | `fn_complete_visit()` |
@@ -92,7 +95,7 @@ fn_manages(rep uuid)   -> boolean   -- admin, or manager_id = me
 | `clinic`, `doctor`, `brand`, `product`, `doctor_clinic` | any active authenticated user | admin | admin | none (soft delete) |
 | `rep_brand_assignment` | self, manager, admin | admin | admin | none |
 | `weekly_plan` | own · manager/admin all | own rep, status=draft | own rep while editable; manager for review fields | none |
-| `planned_visit` | own · manager/admin all | own, plan editable | own while plan editable; manager reschedule | none |
+| `planned_visit` | own · manager/admin all | own while plan editable · **manager, any plan except `locked`** | own while plan editable; manager any | none |
 | `visit` | own · **all reps may read `is_draft=false`** · manager/admin all | own via `fn_start_visit` | own while `in_progress` and draft | **revoked** |
 | `visit_event` | same as parent visit | function only | **revoked** | **revoked** |
 | `visit_addendum` | same as parent visit | manager/admin | **revoked** | **revoked** |
@@ -123,5 +126,16 @@ visit history) while criterion #18 (drafts stay private) still holds.
 3. **Admins do not approve business events.** Administrators manage configuration; they *can* act as a manager for
    exceptions only because the business has three managers and needs cover — this is a deliberate, documented choice
    and every such action is audited.
-4. **No client-side-only enforcement.** Every row in the matrix above is also true if someone calls the REST API
+4. **A manager may change a representative's plan, but never invisibly.** Adding a visit and
+   rescheduling are both legitimate management actions — work gets reassigned mid-week, and a
+   representative should not have to re-enter someone else's decision. The safeguard is not to
+   forbid it but to make it attributable: every change to a plan the actor does not own writes an
+   `audit_log` entry naming them, enforced by trigger. A representative editing their *own* draft
+   is not logged, so the entries that matter stay findable.
+5. **Rescheduling never edits the original.** `fn_reschedule_visit()` creates the replacement,
+   copies the doctors and brands, links the two, and marks the original `rescheduled`. A missed
+   visit therefore cannot be quietly converted into a clean one — the KPI can always tell "moved"
+   from "never happened".
+6. **A locked plan is closed to everyone**, managers and administrators included.
+7. **No client-side-only enforcement.** Every row in the matrix above is also true if someone calls the REST API
    directly with a stolen anon key. Tests in `tests/rls/` assert this.

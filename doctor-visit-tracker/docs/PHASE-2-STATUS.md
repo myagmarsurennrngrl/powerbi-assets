@@ -2,7 +2,7 @@
 
 **Phase 2 scope:** Weekly planning and today's route.
 **Date:** 2026-07-27
-**Tests:** 127 passed / 127 (95 from Phase 1 + 32 new) · **Typecheck:** clean · **Bundles:** iOS ✅ Android ✅
+**Tests:** 144 passed / 144 (95 from Phase 1 + 49 new) · **Typecheck:** clean · **Bundles:** iOS ✅ Android ✅
 
 Your four answers are now the implemented defaults:
 `monos.mn` is the only login domain · deadline is **Friday 18:00** of the preceding week ·
@@ -25,6 +25,10 @@ retention 5 years / 3 years / 1 year.
 | Remove a visit from a draft plan | ✅ (cancelled, never deleted — the trail survives) |
 | Submit a plan for review | ✅ |
 | Manager approve / reject with a mandatory reason | ✅ (server function; the manager *screen* is Phase 6) |
+| **Manager adds a visit directly to a rep's plan** | ✅ `fn_manager_add_visit()` |
+| **Manager reschedules a visit to another date** | ✅ `fn_reschedule_visit()` |
+| Every manager change to someone else's plan is audited with the actor | ✅ enforced by trigger |
+| A locked plan is closed to everyone, managers included | ✅ |
 | Rejection comment shown to the representative | ✅ |
 | Planning deadline: Friday 18:00 of the preceding week, configurable | ✅ |
 | A rejected plan stays editable past the deadline | ✅ deliberate — see §3 |
@@ -68,7 +72,7 @@ somewhere so you can see each one in the UI.
 
 ## 2. How to test it
 
-Rebuild the database (migrations 0009–0011 and seed 0002 are new), then log in as a representative.
+Rebuild the database (migrations 0009–0012 and seed 0002 are new), then log in as a representative.
 
 | # | Do this | Expected |
 |---|---|---|
@@ -81,7 +85,7 @@ Rebuild the database (migrations 0009–0011 and seed 0002 are new), then log in
 | 7 | Submit the plan | Status becomes «Илгээсэн» and it stops being editable |
 | 8 | Log in as `rep03@monos.mn` | Next week's plan is «Татгалзсан» with the manager's reason visible |
 
-Developers: `npm test` (127), `npm run typecheck`, `node scripts/db-provision.mjs`.
+Developers: `npm test` (144), `npm run typecheck`, `node scripts/db-provision.mjs`.
 
 ---
 
@@ -124,7 +128,7 @@ now carries an explicit allowlist, so any *new* delete grant fails the build and
 | Start visit, geofence check-in, active visit, check-out | 3 |
 | Visit completion form, doctor visit history | 4 |
 | Exception requests and approval screens | 5 |
-| Manager dashboard, plan approval **screen** (the function works and is tested) | 6 |
+| Manager **screens**: dashboard, plan approval, add-visit, reschedule (all four server functions work and are tested) | 6 |
 | Drag-to-reorder visits (order is set automatically on add; a manual reorder UI is Phase 6) | 6 |
 | Offline planning | 7 |
 
@@ -133,12 +137,40 @@ rollout; representatives can read colleague rows in `app_user`; icons are emoji.
 
 ---
 
-## 6. Ready for your feedback
+## 6. Manager plan authority — confirmed as "both"
 
-Nothing that works will be replaced until you have tested it. Phase 3 (location validation, check-in,
-active visit, check-out) is next, and it is the one that decides whether the whole system is
-trustworthy — so it is worth confirming the planning flow feels right first.
+You confirmed a manager may **both** add a visit directly to a representative's plan **and**
+approve / reject / reschedule. Migration `0012_manager_plan_authority.sql` implements it, with
+17 tests.
 
-One question, answerable later: **should a manager be able to add a visit to a representative's plan
-directly**, or only approve/reject and reschedule? The permissions matrix currently says
-approve/reject/reschedule only, and that is what is built.
+Widening "who can change my plan" is the kind of change that quietly erodes trust in a system, so
+it ships with three guardrails:
+
+1. **Attributable.** Every change to a plan the actor does not own writes an `audit_log` entry
+   naming them, enforced by trigger. A representative editing their own draft is *not* logged —
+   otherwise ordinary work would drown the entries that matter.
+2. **Rescheduling never edits the original.** It creates the replacement, copies the doctors and
+   brands, links the two, and marks the original `rescheduled`. A missed visit therefore cannot be
+   quietly turned into a clean one; the KPI can always distinguish "moved" from "never happened".
+3. **A locked plan is closed to everyone**, managers and administrators included.
+
+Two further deliberate details:
+
+* The **planning deadline does not apply to a manager**. The deadline exists to stop a
+  representative rewriting their own plan after the fact; reassigning work mid-week is exactly what
+  a manager is supposed to do.
+* **The duplicate rule still applies to managers.** A manager cannot create the double-booking a
+  representative is prevented from creating. Tested.
+* Rescheduling into a week with no plan yet **creates that week's plan automatically**, so a visit
+  can always be moved forward.
+
+The manager *screens* for all of this arrive in Phase 6 alongside the exception approval queue —
+same position as approve/reject, which has worked and been tested since earlier in this phase.
+
+---
+
+## 7. Ready for your feedback
+
+Nothing that works will be replaced until you have tested it. Phase 3 (location validation,
+check-in, active visit, check-out) is next, and it is the one that decides whether the whole system
+is trustworthy — so it is worth confirming the planning flow feels right first.
