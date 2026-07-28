@@ -34,6 +34,8 @@ export default function LoginScreen() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** The provider's raw message, shown under the friendly one. See detailFor. */
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
 
   const configMissing = getConfigError();
@@ -62,12 +64,31 @@ export default function LoginScreen() {
         case 'network':
           return mn.auth.errorNetwork;
         case 'rate_limited':
-          return mn.auth.errorGeneric;
+          return mn.auth.errorRateLimited;
         default:
           return mn.auth.errorGeneric;
       }
     }
     return mn.auth.errorGeneric;
+  };
+
+  /**
+   * The provider's own words, kept alongside the friendly message.
+   *
+   * Without this the screen said only «Нэвтрэхэд алдаа гарлаа» for every
+   * unrecognised failure, which is unactionable for the person and
+   * undiagnosable for whoever they ask. "Signups not allowed for otp" and
+   * "email rate limit exceeded" need completely different responses, and the
+   * app was hiding which one had happened.
+   *
+   * Shown small and secondary: the Mongolian sentence is still the message.
+   */
+  const detailFor = (err: unknown): string | null => {
+    if (err instanceof AuthError && err.code !== 'domain_not_allowed') {
+      const raw = err.message?.trim();
+      if (raw && raw.toLowerCase() !== 'unknown authentication error') return raw;
+    }
+    return null;
   };
 
   const handleRequestCode = useCallback(async () => {
@@ -83,12 +104,14 @@ export default function LoginScreen() {
 
     setBusy(true);
     setError(null);
+    setErrorDetail(null);
     try {
       await auth.requestCode(trimmed);
       setStep('code');
       setCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (err) {
       setError(messageFor(err));
+      setErrorDetail(detailFor(err));
     } finally {
       setBusy(false);
     }
@@ -102,6 +125,7 @@ export default function LoginScreen() {
 
     setBusy(true);
     setError(null);
+    setErrorDetail(null);
     try {
       await auth.verifyCode(email.trim(), code.trim());
       // The root layout reacts to the session change; refreshing the profile
@@ -109,6 +133,7 @@ export default function LoginScreen() {
       await refreshProfile();
     } catch (err) {
       setError(messageFor(err));
+      setErrorDetail(detailFor(err));
     } finally {
       setBusy(false);
     }
@@ -159,6 +184,14 @@ export default function LoginScreen() {
                   onSubmitEditing={() => void handleRequestCode()}
                   returnKeyType="send"
                 />
+                {errorDetail ? (
+                  <View style={styles.detailBox}>
+                    <Text style={styles.detailLabel}>{mn.auth.errorDetailLabel}</Text>
+                    <Text style={styles.detailText} selectable>
+                      {errorDetail}
+                    </Text>
+                  </View>
+                ) : null}
                 <PrimaryButton
                   label={busy ? mn.auth.sendingCode : mn.auth.sendCode}
                   onPress={() => void handleRequestCode()}
@@ -189,6 +222,14 @@ export default function LoginScreen() {
                   onSubmitEditing={() => void handleVerify()}
                   returnKeyType="go"
                 />
+                {errorDetail ? (
+                  <View style={styles.detailBox}>
+                    <Text style={styles.detailLabel}>{mn.auth.errorDetailLabel}</Text>
+                    <Text style={styles.detailText} selectable>
+                      {errorDetail}
+                    </Text>
+                  </View>
+                ) : null}
                 <PrimaryButton
                   label={busy ? mn.auth.verifying : mn.auth.verify}
                   onPress={() => void handleVerify()}
@@ -220,6 +261,20 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Secondary to the Mongolian message, but selectable so it can be copied
+  // into a support message. Diagnosing "it says an error occurred" is
+  // impossible; diagnosing "Signups not allowed for otp" takes seconds.
+  detailBox: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: 2,
+  },
+  detailLabel: { ...typography.caption, color: colors.textFaint, fontWeight: '700' },
+  detailText: { ...typography.caption, color: colors.textMuted, lineHeight: 18 },
+
   safe: { flex: 1, backgroundColor: colors.primary },
   flex: { flex: 1 },
   content: { flexGrow: 1, padding: spacing.lg, gap: spacing.xl, justifyContent: 'center' },
