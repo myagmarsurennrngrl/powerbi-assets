@@ -421,11 +421,10 @@ The app opens on the phone. To stop it, click the Terminal and press **Ctrl + C*
 
 ### D4. Make the email contain a CODE, not a link ← do this before D5
 
-**Supabase does not send a 6-digit code by default. It sends a link.** Its
+**Supabase does not send a numeric code by default. It sends a link.** Its
 stock templates are written for a website, where clicking a link in the same
 browser signs you in. This is a phone app: there is no browser session to land
-in, and the login screen has six boxes waiting for six digits. The link is
-useless to it — and the long `token=2945baa2…` in that link is a different kind
+in, and the login screen wants the numeric code. The link is useless to it — and the long `token=2945baa2…` in that link is a different kind
 of token, so no code can be extracted from it either.
 
 Left unchanged, the app is correct, the email arrives, and login is impossible.
@@ -453,11 +452,11 @@ whole body of each with:
 <h2>Эмчийн уулзалтын бүртгэл</h2>
 <p>Таны нэвтрэх код:</p>
 <p style="font-size:32px;font-weight:bold;letter-spacing:8px;font-family:monospace">{{ .Token }}</p>
-<p>Энэ кодыг аппын дэлгэц дээрх 6 нүдэнд оруулна уу.</p>
+<p>Энэ кодыг аппын нэвтрэх дэлгэц дээр оруулна уу.</p>
 <p style="color:#888;font-size:13px">Хэрэв та код хүсээгүй бол энэ захидлыг үл тоомсорлоно уу.</p>
 ```
 
-`{{ .Token }}` is the 6-digit code. Copy it exactly, braces and spacing
+`{{ .Token }}` is the numeric code. Copy it exactly, braces and spacing
 included.
 
 Both templates matter: Supabase sends **Confirm signup** to somebody who has
@@ -468,7 +467,7 @@ the free-tier limit below, that mistake costs an hour.
 ### D5. Log in
 1. Type a work email that exists in `app_user`.
 2. Tap **Код авах**.
-3. Check that inbox for a 6-digit code (check spam, and on a corporate domain
+3. Check that inbox for the code (check spam, and on a corporate domain
    check the mail filter's quarantine — it is not always in Junk).
 4. Type the code and tap **Нэвтрэх**.
 

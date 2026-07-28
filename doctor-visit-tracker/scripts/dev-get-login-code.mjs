@@ -8,8 +8,8 @@
  * ---------------
  * Two Supabase free-tier limits meet in a way that stops testing dead:
  *
- *   1. The stock email templates send a confirmation LINK, not a 6-digit
- *      code. A phone app cannot use a link — the login screen has six boxes.
+ *   1. The stock email templates send a confirmation LINK, not a numeric
+ *      code. A phone app cannot use a link.
  *   2. Editing those templates requires custom SMTP, and custom SMTP on a
  *      company domain requires the IT department.
  *
@@ -299,7 +299,7 @@ async function main() {
   console.log(`  │   ${result.code.padEnd(22)} │`);
   console.log('  └──────────────────────────┘');
   console.log('');
-  console.log('  Энэ кодыг аппын 6 нүдэнд оруулна уу.');
+  console.log('  Энэ кодыг аппын нэвтрэх дэлгэц дээр оруулна уу.');
   console.log('  И-мэйл ИЛГЭЭГДЭЭГҮЙ — цагийн хязгаар зарцуулагдаагүй.');
   console.log('');
 }

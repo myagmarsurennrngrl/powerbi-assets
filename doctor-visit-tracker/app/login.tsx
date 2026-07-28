@@ -1,8 +1,11 @@
 /**
  * Screen 1 — Нэвтрэх (Login)
  *
- * Two steps: type the work email, then type the 6-digit code that arrives by
+ * Two steps: type the work email, then type the one-time code that arrives by
  * email. No password to forget or leak.
+ *
+ * The code's length is a Supabase project setting (6 to 10), not a constant —
+ * see src/domain/otp.ts for what assuming 6 cost.
  *
  * The domain restriction is checked here for a fast, clear message, but it is
  * ENFORCED by the database (migration 0006). If this screen were bypassed
@@ -22,6 +25,7 @@ import { AuthError, useSession } from '../src/lib/auth';
 import { getConfigError, getConfigProblem } from '../src/lib/supabase';
 import { LabelledInput, PrimaryButton, SecondaryButton } from '../src/components/ui';
 import { mn } from '../src/lib/i18n/mn';
+import { OTP_MAX_LENGTH, isSubmittableOtp, sanitiseOtpInput } from '../src/domain/otp';
 import { colors, radius, spacing, typography } from '../src/theme';
 
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -124,6 +128,10 @@ export default function LoginScreen() {
       setError(mn.auth.errorCodeRequired);
       return;
     }
+    if (!isSubmittableOtp(code)) {
+      setError(mn.auth.errorCodeTooShort);
+      return;
+    }
 
     setBusy(true);
     setError(null);
@@ -214,15 +222,14 @@ export default function LoginScreen() {
                   placeholder={mn.auth.codePlaceholder}
                   value={code}
                   onChangeText={(text) => {
-                    // Digits only — the code is always six numbers.
-                    setCode(text.replace(/\D/g, '').slice(0, 6));
+                    setCode(sanitiseOtpInput(text));
                     setError(null);
                   }}
                   keyboardType="number-pad"
                   inputMode="numeric"
                   textContentType="oneTimeCode"
                   autoComplete="one-time-code"
-                  maxLength={6}
+                  maxLength={OTP_MAX_LENGTH}
                   editable={!busy}
                   error={error}
                   style={styles.codeInput}

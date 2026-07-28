@@ -48,7 +48,7 @@ export const mn = {
     emailPlaceholder: 'ner@monos.mn',
     sendCode: 'Код авах',
     sendingCode: 'Код илгээж байна...',
-    codeLabel: 'И-мэйлээр ирсэн 6 оронтой код',
+    codeLabel: 'И-мэйлээр ирсэн код',
     codePlaceholder: '000000',
     verify: 'Нэвтрэх',
     verifying: 'Шалгаж байна...',
@@ -73,6 +73,7 @@ export const mn = {
     errorEmailRequired: 'И-мэйл хаягаа оруулна уу.',
     errorEmailInvalid: 'И-мэйл хаяг буруу байна.',
     errorCodeRequired: 'Кодоо оруулна уу.',
+    errorCodeTooShort: 'Код бүтэн биш байна. И-мэйлд ирсэн бүх оронг оруулна уу.',
   },
 
   roles: {
