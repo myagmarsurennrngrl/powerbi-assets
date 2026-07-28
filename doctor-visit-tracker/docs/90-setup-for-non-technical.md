@@ -51,15 +51,74 @@ node --version
 Press Enter. You should see something like `v22.22.2`. If you see "command not found", restart your computer and try again.
 
 ### A2. Get the project onto your computer
-If someone sent you a ZIP file, unzip it. If it is on GitHub, click the green **Code** button → **Download ZIP** → unzip.
 
-Then in the Terminal, move into the folder. Type `cd ` (with a space), then **drag the folder onto the Terminal window** and press Enter.
+If someone sent you a ZIP file, unzip it. If it is on GitHub: click the green **Code** button →
+**Download ZIP** → unzip.
+
+> **Check the branch first.** On GitHub, above the file list there is a dropdown showing the
+> branch name. If the work is on a branch such as `claude/doctor-visit-tracker-app-...`, select it
+> **before** clicking Code → Download ZIP. Downloading from the default branch gives you a folder
+> without the app in it.
+
+**Windows: do not leave the folder inside OneDrive.** The next step creates around 40,000 small
+files, and OneDrive will try to sync every one of them — a slow install, sync errors, and files
+locked while you work. Move it somewhere OneDrive does not watch, for example `C:\dev\`:
+
+```powershell
+mkdir C:\dev
+Move-Item "C:\Users\<you>\OneDrive - monos\Documents\<the folder>" C:\dev\
+```
+
+Nothing is at risk in doing this — the real copy is on GitHub.
+
+**Now move into the folder in the Terminal.**
+
+* **macOS:** type `cd ` (with a space), then drag the folder onto the Terminal window, press Enter.
+* **Windows:** type `cd `, then paste the full path **in quotes**, press Enter:
+  ```powershell
+  cd "C:\dev\powerbi-assets-...\doctor-visit-tracker"
+  ```
+
+> **You need the inner `doctor-visit-tracker` folder, not the outer one.** The repository holds
+> the app in a subfolder. If you stop at the outer folder, the next step fails with
+> *"Could not read package.json"*. That error always means you are one folder too high — type
+> `cd doctor-visit-tracker` and try again.
+
+Type `dir` (Windows) or `ls` (macOS) and press Enter. You are in the right place if you see
+`package.json`, `app`, `src` and `docs` listed.
 
 ### A3. Install the project's building blocks
 ```
 npm install
 ```
-This takes 2–5 minutes and prints a lot of text. Some yellow warnings are normal. Red text saying `ERR!` is not — send it to a developer.
+
+This takes 2–5 minutes and prints a lot of text. Yellow `warn` lines are normal. It has finished
+when your prompt (`PS C:\...>` or `yourname@Mac ~ %`) comes back.
+
+Red text saying `ERR!` is not normal — send it to a developer.
+
+#### Windows: "npm.ps1 cannot be loaded ... is not digitally signed"
+
+This is the most common first error on Windows, and it is **not** a problem with the project.
+Windows blocks PowerShell from running scripts by default, and npm is a script.
+
+Paste this once, answer `Y`, then run `npm install` again:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+**What it does:** allows scripts you installed yourself (like npm) to run, while still blocking
+unsigned scripts downloaded from the internet. It applies to your user account only, needs no
+administrator rights, and is the setting Microsoft recommends for development machines.
+
+To undo it later: `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Undefined`.
+
+#### If you would rather change no settings at all
+
+Add `.cmd` to every command — `npm.cmd install` instead of `npm install`, `npx.cmd` instead of
+`npx`. This works, but you must remember it every single time, which is why the setting above is
+the better answer.
 
 ---
 
