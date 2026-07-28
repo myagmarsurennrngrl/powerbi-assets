@@ -65,52 +65,44 @@ ALTER TABLE public.visit_addendum       ENABLE TRIGGER trg_visit_addendum_no_del
 ALTER TABLE public.kpi_period_snapshot  ENABLE TRIGGER trg_kpi_snapshot_no_delete;
 
 -- -----------------------------------------------------------------------------
--- Pick the past planned visits that "happened".
---
--- Seed 0002 already marked ~10% missed and ~10% cancelled; those stay as they
--- are. Everything else in the past becomes a completed visit.
---
--- The status filter accepts BOTH 'planned' and 'completed' so this file is
--- re-runnable: the first run flips those rows to 'completed', and a second run
--- must still find them rather than silently producing nothing.
--- -----------------------------------------------------------------------------
--- A REAL table, not a TEMP one, and deliberately so.
---
--- A temp table lives in one session and `ON COMMIT DROP` removes it the moment
--- its transaction ends. That is fine under `psql -f`, which runs the whole file
--- in one session and one transaction — and it BREAKS in the Supabase SQL
--- editor, which sends statements separately over a pooled connection. The
--- table was created and dropped before the next statement could read it:
---   ERROR: relation "tmp_completed" does not exist
---
--- A plain table survives either way. It is dropped again at the foot of this
--- file, and dropped defensively above in case a previous run died partway.
-DROP TABLE IF EXISTS public.seed_tmp_completed;
-
-CREATE TABLE public.seed_tmp_completed AS
-SELECT
-  pv.id                          AS planned_visit_id,
-  pv.rep_id,
-  pv.clinic_id,
-  pv.planned_date,
-  pv.planned_order,
-  pv.planned_time,
-  c.latitude                     AS clinic_lat,
-  c.longitude                    AS clinic_lon,
-  c.geofence_radius_m,
-  row_number() OVER (ORDER BY pv.planned_date, pv.rep_id, pv.planned_order) AS rn
-FROM public.planned_visit pv
-JOIN public.clinic c ON c.id = pv.clinic_id
-WHERE pv.planned_date < public.fn_local_date()
-  AND pv.status IN ('planned', 'completed');
-
--- -----------------------------------------------------------------------------
 -- The visits themselves.
 --
 -- Start time = planned time (or 09:00) plus a few minutes of jitter, so the
 -- "on-time start" KPI has both punctual and late examples.
 -- Duration = 18-52 minutes, with two deliberately-too-short outliers.
 -- -----------------------------------------------------------------------------
+WITH src AS (
+  -- The past planned visits that "happened".
+  --
+  -- Inlined into every statement that needs it rather than materialised once.
+  -- An earlier version built a table here — first TEMP, then real — and both
+  -- broke in the Supabase SQL editor, which does not carry state between
+  -- statements the way `psql -f` does. Repeating the CTE costs a few
+  -- milliseconds and removes the dependency completely.
+  --
+  -- `rn` drives every derived value below (start time, jitter, which rows are
+  -- anomalous), so it MUST come out identical in each copy. The ORDER BY ends
+  -- with pv.id to make it fully deterministic even when two visits share a
+  -- date, representative and order.
+  --
+  -- Seed 0002 already marked ~10% missed and ~10% cancelled; those stay as they
+  -- are. The status filter accepts 'completed' as well as 'planned' so a second
+  -- run still finds the rows the first run flipped.
+  SELECT
+    pv.id                          AS planned_visit_id,
+    pv.rep_id,
+    pv.clinic_id,
+    pv.planned_date,
+    pv.planned_time,
+    c.latitude                     AS clinic_lat,
+    c.longitude                    AS clinic_lon,
+    c.geofence_radius_m,
+    row_number() OVER (ORDER BY pv.planned_date, pv.rep_id, pv.planned_order, pv.id) AS rn
+  FROM public.planned_visit pv
+  JOIN public.clinic c ON c.id = pv.clinic_id
+  WHERE pv.planned_date < public.fn_local_date()
+    AND pv.status IN ('planned', 'completed')
+)
 INSERT INTO public.visit (
   planned_visit_id, rep_id, clinic_id, visit_date, status,
   started_at_server, completed_at_server, is_draft, created_source,
@@ -188,7 +180,7 @@ SELECT
   (t.rn % 4 = 0),
   CASE WHEN t.rn % 4 = 0 THEN t.planned_date + 21 END,
   '0.1.0'
-FROM public.seed_tmp_completed t;
+FROM src t;
 
 -- -----------------------------------------------------------------------------
 -- Check-in events.
@@ -196,6 +188,38 @@ FROM public.seed_tmp_completed t;
 -- Coordinates jitter ±60 m around the clinic. Rows where rn % 41 = 0 are placed
 -- WELL outside the radius on purpose, to populate the manager review list.
 -- -----------------------------------------------------------------------------
+WITH src AS (
+  -- The past planned visits that "happened".
+  --
+  -- Inlined into every statement that needs it rather than materialised once.
+  -- An earlier version built a table here — first TEMP, then real — and both
+  -- broke in the Supabase SQL editor, which does not carry state between
+  -- statements the way `psql -f` does. Repeating the CTE costs a few
+  -- milliseconds and removes the dependency completely.
+  --
+  -- `rn` drives every derived value below (start time, jitter, which rows are
+  -- anomalous), so it MUST come out identical in each copy. The ORDER BY ends
+  -- with pv.id to make it fully deterministic even when two visits share a
+  -- date, representative and order.
+  --
+  -- Seed 0002 already marked ~10% missed and ~10% cancelled; those stay as they
+  -- are. The status filter accepts 'completed' as well as 'planned' so a second
+  -- run still finds the rows the first run flipped.
+  SELECT
+    pv.id                          AS planned_visit_id,
+    pv.rep_id,
+    pv.clinic_id,
+    pv.planned_date,
+    pv.planned_time,
+    c.latitude                     AS clinic_lat,
+    c.longitude                    AS clinic_lon,
+    c.geofence_radius_m,
+    row_number() OVER (ORDER BY pv.planned_date, pv.rep_id, pv.planned_order, pv.id) AS rn
+  FROM public.planned_visit pv
+  JOIN public.clinic c ON c.id = pv.clinic_id
+  WHERE pv.planned_date < public.fn_local_date()
+    AND pv.status IN ('planned', 'completed')
+)
 INSERT INTO public.visit_event (
   visit_id, event_type, server_ts, device_ts,
   latitude, longitude, gps_accuracy_m,
@@ -221,7 +245,7 @@ SELECT
   v.created_source,
   (t.rn % 137 = 0),                         -- a single mocked-location example
   ev.distance > t.geofence_radius_m
-FROM public.seed_tmp_completed t
+FROM src t
 JOIN public.visit v ON v.planned_visit_id = t.planned_visit_id
 CROSS JOIN LATERAL (
   SELECT
@@ -241,6 +265,38 @@ CROSS JOIN LATERAL (
 -- -----------------------------------------------------------------------------
 -- Check-out events — near the clinic, a little more scattered.
 -- -----------------------------------------------------------------------------
+WITH src AS (
+  -- The past planned visits that "happened".
+  --
+  -- Inlined into every statement that needs it rather than materialised once.
+  -- An earlier version built a table here — first TEMP, then real — and both
+  -- broke in the Supabase SQL editor, which does not carry state between
+  -- statements the way `psql -f` does. Repeating the CTE costs a few
+  -- milliseconds and removes the dependency completely.
+  --
+  -- `rn` drives every derived value below (start time, jitter, which rows are
+  -- anomalous), so it MUST come out identical in each copy. The ORDER BY ends
+  -- with pv.id to make it fully deterministic even when two visits share a
+  -- date, representative and order.
+  --
+  -- Seed 0002 already marked ~10% missed and ~10% cancelled; those stay as they
+  -- are. The status filter accepts 'completed' as well as 'planned' so a second
+  -- run still finds the rows the first run flipped.
+  SELECT
+    pv.id                          AS planned_visit_id,
+    pv.rep_id,
+    pv.clinic_id,
+    pv.planned_date,
+    pv.planned_time,
+    c.latitude                     AS clinic_lat,
+    c.longitude                    AS clinic_lon,
+    c.geofence_radius_m,
+    row_number() OVER (ORDER BY pv.planned_date, pv.rep_id, pv.planned_order, pv.id) AS rn
+  FROM public.planned_visit pv
+  JOIN public.clinic c ON c.id = pv.clinic_id
+  WHERE pv.planned_date < public.fn_local_date()
+    AND pv.status IN ('planned', 'completed')
+)
 INSERT INTO public.visit_event (
   visit_id, event_type, server_ts, device_ts,
   latitude, longitude, gps_accuracy_m,
@@ -265,7 +321,7 @@ SELECT
   v.created_source,
   false,
   ev.distance > t.geofence_radius_m
-FROM public.seed_tmp_completed t
+FROM src t
 JOIN public.visit v ON v.planned_visit_id = t.planned_visit_id
 CROSS JOIN LATERAL (
   SELECT
@@ -311,10 +367,6 @@ UPDATE public.planned_visit pv
   FROM public.visit v
  WHERE v.planned_visit_id = pv.id
    AND pv.status <> 'completed';
-
--- Scratch table gone. It has no row-level security, so leaving it behind would
--- (correctly) be reported by fn_security_findings().
-DROP TABLE IF EXISTS public.seed_tmp_completed;
 
 COMMIT;
 

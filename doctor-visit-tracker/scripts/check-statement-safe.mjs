@@ -189,6 +189,39 @@ for (const [table, want] of Object.entries(expected)) {
 if (count(`SELECT count(*) FROM pg_class WHERE relname LIKE 'seed_tmp_%'`) > 0) {
   problems.push('a seed scratch table was left behind');
 }
+
+// Seed 0003 repeats the same CTE in three statements, and every derived value
+// hangs off the row_number() it computes. If the three copies ever disagree —
+// a changed ORDER BY, a changed WHERE — the visits and their events drift
+// apart silently. These invariants catch that.
+const visitsWithoutTwoEvents = count(
+  `SELECT count(*) FROM public.visit v
+   WHERE (SELECT count(*) FROM public.visit_event e WHERE e.visit_id = v.id) <> 2`,
+);
+if (visitsWithoutTwoEvents > 0) {
+  problems.push(`${visitsWithoutTwoEvents} visits do not have exactly one check-in and one check-out`);
+}
+
+const eventClinicMismatch = count(
+  `SELECT count(*) FROM public.visit_event e
+   JOIN public.visit v ON v.id = e.visit_id
+   WHERE e.clinic_id <> v.clinic_id`,
+);
+if (eventClinicMismatch > 0) {
+  problems.push(`${eventClinicMismatch} location events point at a different clinic than their visit`);
+}
+
+// The deliberate anomalies exist so the manager review list is not empty on
+// day one. Losing them would quietly remove the only test data that exercises
+// that screen.
+for (const [what, sql, want] of [
+  ['outside the geofence', 'SELECT count(*) FROM public.visit_event WHERE outside_geofence', 4],
+  ['mocked location', 'SELECT count(*) FROM public.visit_event WHERE is_mocked_location', 1],
+  ['too short', 'SELECT count(*) FROM public.visit WHERE duration_seconds < 120', 2],
+]) {
+  const got = count(sql);
+  if (got !== want) problems.push(`seeded anomalies "${what}": expected ${want}, got ${got}`);
+}
 const findings = count('SELECT count(*) FROM public.fn_security_findings()');
 if (findings > 0) problems.push(`fn_security_findings() returned ${findings} rows`);
 
