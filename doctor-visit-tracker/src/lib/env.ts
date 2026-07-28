@@ -20,6 +20,58 @@ export interface EnvResult {
   ok: boolean;
   env: AppEnv | null;
   missing: string[];
+  /** A specific, actionable problem with a value that IS present. */
+  problem: string | null;
+}
+
+/**
+ * Tidy a value copied out of a `.env` file by hand.
+ *
+ * Two mistakes account for almost every broken setup, and neither is visible
+ * when you look at the file:
+ *
+ *   EXPO_PUBLIC_SUPABASE_URL="https://abc.supabase.co"   <- quotes are kept
+ *   EXPO_PUBLIC_SUPABASE_URL=https://abc.supabase.co␣    <- trailing space
+ *
+ * A `.env` file has no quoting rules, so the quotes become part of the value
+ * and the URL is then invalid. Stripping them here is not guesswork: a leading
+ * and trailing quote around a URL is never intentional.
+ */
+function clean(value: string): string {
+  const trimmed = value.trim();
+  const unquoted =
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+      ? trimmed.slice(1, -1)
+      : trimmed;
+  return unquoted.trim();
+}
+
+/**
+ * Is this something `createClient` will accept?
+ *
+ * Without this check a malformed URL sailed through and blew up several layers
+ * down inside the Supabase client, as a red screen and a stack trace pointing
+ * at supabase.ts — which tells the person nothing about the file they need to
+ * edit. See tests/domain/env.test.ts.
+ */
+function describeUrlProblem(url: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url.includes('://')
+      ? `EXPO_PUBLIC_SUPABASE_URL хаяг буруу байна: "${url}"`
+      : `EXPO_PUBLIC_SUPABASE_URL нь https:// -ээр эхлэх ёстой. Одоо: "${url}"`;
+  }
+
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    return `EXPO_PUBLIC_SUPABASE_URL нь https:// -ээр эхлэх ёстой. Одоо: "${url}"`;
+  }
+  if (!parsed.hostname.includes('.')) {
+    return `EXPO_PUBLIC_SUPABASE_URL бүрэн бус байна: "${url}"`;
+  }
+  return null;
 }
 
 /**
@@ -30,8 +82,8 @@ export interface EnvResult {
  * computed key such as process.env[name].
  */
 export function readEnv(): EnvResult {
-  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-  const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+  const supabaseUrl = clean(process.env.EXPO_PUBLIC_SUPABASE_URL ?? '');
+  const supabaseAnonKey = clean(process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '');
 
   const missing: string[] = [];
   if (!supabaseUrl || supabaseUrl.includes('your-project-ref')) {
@@ -42,10 +94,30 @@ export function readEnv(): EnvResult {
   }
 
   if (missing.length > 0) {
-    return { ok: false, env: null, missing };
+    return { ok: false, env: null, missing, problem: null };
   }
 
-  return { ok: true, env: { supabaseUrl, supabaseAnonKey }, missing: [] };
+  // Present but wrong is a different situation from absent, and needs a
+  // different message: "fill in the file" versus "this line is malformed".
+  const urlProblem = describeUrlProblem(supabaseUrl);
+  if (urlProblem) {
+    return { ok: false, env: null, missing: [], problem: urlProblem };
+  }
+
+  // The anon key is a JWT: three dot-separated parts. A truncated paste is the
+  // usual cause, and it fails much later with a confusing auth error.
+  if (supabaseAnonKey.split('.').length !== 3) {
+    return {
+      ok: false,
+      env: null,
+      missing: [],
+      problem:
+        'EXPO_PUBLIC_SUPABASE_ANON_KEY бүтэн хуулагдаагүй байна. Supabase дээрх Copy товчийг ' +
+        'ашиглан бүтнээр нь дахин хуулна уу.',
+    };
+  }
+
+  return { ok: true, env: { supabaseUrl, supabaseAnonKey }, missing: [], problem: null };
 }
 
 /**

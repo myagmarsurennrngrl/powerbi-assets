@@ -56,6 +56,8 @@ const secureStorageAdapter = {
 
 let client: SupabaseClient | null = null;
 let configError: string[] | null = null;
+/** A specific complaint about a value that is present but wrong. */
+let configProblem: string | null = null;
 
 /**
  * Returns the shared client, or null when configuration is missing.
@@ -65,33 +67,47 @@ export function getSupabase(): SupabaseClient | null {
   if (client) return client;
   if (configError) return null;
 
-  const { ok, env, missing } = readEnv();
+  const { ok, env, missing, problem } = readEnv();
   if (!ok || !env) {
     configError = missing;
+    configProblem = problem;
     console.warn(
-      `Supabase is not configured. Missing: ${missing.join(', ')}. ` +
-        'Copy .env.example to .env and fill it in — see docs/90-setup-for-non-technical.md',
+      problem
+        ? `Supabase is not configured: ${problem}`
+        : `Supabase is not configured. Missing: ${missing.join(', ')}. ` +
+            'Copy .env.example to .env and fill it in — see docs/90-setup-for-non-technical.md',
     );
     return null;
   }
 
   assertNotServiceRoleKey(env.supabaseAnonKey);
 
-  client = createClient(env.supabaseUrl, env.supabaseAnonKey, {
-    auth: {
-      storage: secureStorageAdapter,
-      autoRefreshToken: true,
-      persistSession: true,
-      // The app has no browser redirect flow; codes are typed in by hand.
-      detectSessionInUrl: false,
-    },
-    global: {
-      headers: {
-        'x-application': 'doctor-visit-tracker',
-        'x-platform': Platform.OS,
+  // Guarded even though readEnv has already validated the URL. createClient
+  // throws on a bad one, and a throw here happens inside SessionProvider —
+  // which red-screens the whole app instead of showing the configuration
+  // screen that exists precisely for this.
+  try {
+    client = createClient(env.supabaseUrl, env.supabaseAnonKey, {
+      auth: {
+        storage: secureStorageAdapter,
+        autoRefreshToken: true,
+        persistSession: true,
+        // The app has no browser redirect flow; codes are typed in by hand.
+        detectSessionInUrl: false,
       },
-    },
-  });
+      global: {
+        headers: {
+          'x-application': 'doctor-visit-tracker',
+          'x-platform': Platform.OS,
+        },
+      },
+    });
+  } catch (error) {
+    configError = ['EXPO_PUBLIC_SUPABASE_URL'];
+    configProblem = error instanceof Error ? error.message : String(error);
+    console.warn(`Supabase client could not be created: ${configProblem}`);
+    return null;
+  }
 
   return client;
 }
@@ -100,4 +116,13 @@ export function getSupabase(): SupabaseClient | null {
 export function getConfigError(): string[] | null {
   if (!client && !configError) getSupabase();
   return configError;
+}
+
+/**
+ * The specific thing that is wrong, when a value is present but malformed.
+ * Shown on the configuration screen so the person knows which line to edit.
+ */
+export function getConfigProblem(): string | null {
+  if (!client && !configError) getSupabase();
+  return configProblem;
 }

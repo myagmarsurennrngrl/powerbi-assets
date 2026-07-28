@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthError, useSession } from '../src/lib/auth';
-import { getConfigError } from '../src/lib/supabase';
+import { getConfigError, getConfigProblem } from '../src/lib/supabase';
 import { LabelledInput, PrimaryButton, SecondaryButton } from '../src/components/ui';
 import { mn } from '../src/lib/i18n/mn';
 import { colors, radius, spacing, typography } from '../src/theme';
@@ -39,6 +39,8 @@ export default function LoginScreen() {
   const [cooldown, setCooldown] = useState(0);
 
   const configMissing = getConfigError();
+  /** Present-but-wrong, e.g. a URL with quotation marks round it. */
+  const configProblem = getConfigProblem();
 
   // Cooldown between "resend code" presses — a small client-side brake on top
   // of Supabase's own server-side rate limiting.
@@ -158,7 +160,12 @@ export default function LoginScreen() {
           {configMissing ? (
             <View style={styles.configError}>
               <Text style={styles.configErrorTitle}>{mn.errors.configMissing}</Text>
-              <Text style={styles.configErrorDetail}>{configMissing.join(', ')}</Text>
+              {/* A malformed value needs a different instruction from a
+                  missing one: which line is wrong, not "fill in the file". */}
+              <Text style={styles.configErrorDetail} selectable>
+                {configProblem ?? configMissing.join(', ')}
+              </Text>
+              <Text style={styles.configErrorDetail}>{mn.errors.configHint}</Text>
             </View>
           ) : null}
 
