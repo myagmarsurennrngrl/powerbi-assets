@@ -15,8 +15,8 @@ managers get visibility and KPIs; the data feeds Power BI.
 
 | | |
 |---|---|
-| **Phase** | 6 of 7 complete — see [`docs/PHASE-6-STATUS.md`](docs/PHASE-6-STATUS.md) |
-| **Tests** | 352 passing |
+| **Phase** | **7 of 7 complete** — see [`docs/PHASE-7-STATUS.md`](docs/PHASE-7-STATUS.md) |
+| **Tests** | 443 passing |
 | **Platforms** | iOS and Android bundles verified |
 | **Audio recording** | Not implemented. Flag off. No recording code exists. |
 
@@ -30,9 +30,16 @@ reads. Phase 5 adds the exception workflow — the pressure valve for honest fai
 cannot distinguish from dishonest ones — and the KPI, with versioned rules so published history
 never changes. Phase 6 adds the manager dashboard, the audit log screen, audited exports, the
 `reporting` star schema and read-only login for Power BI, user and master-data administration
-(including the clinic geofence editor), and unplanned visits. Offline support is Phase 7.
+(including the clinic geofence editor), and unplanned visits. Phase 7 adds the offline cache and
+outbox queue, the sync status screen, security hardening — including a real bug that let an
+unauthenticated caller forge audit entries — and the deployment, security, privacy and user
+documentation.
 
-Phase reports: [1](docs/PHASE-1-STATUS.md) · [2](docs/PHASE-2-STATUS.md) · [3](docs/PHASE-3-STATUS.md) · [4](docs/PHASE-4-STATUS.md) · [5](docs/PHASE-5-STATUS.md) · [6](docs/PHASE-6-STATUS.md)
+Phase reports: [1](docs/PHASE-1-STATUS.md) · [2](docs/PHASE-2-STATUS.md) · [3](docs/PHASE-3-STATUS.md) · [4](docs/PHASE-4-STATUS.md) · [5](docs/PHASE-5-STATUS.md) · [6](docs/PHASE-6-STATUS.md) · [7](docs/PHASE-7-STATUS.md)
+
+**Before real use, do these three things** — see [`docs/PHASE-7-STATUS.md`](docs/PHASE-7-STATUS.md) §8:
+walk to every clinic and verify its coordinates; get zero rows from `SELECT * FROM public.fn_security_findings();`
+on production; rehearse a database restore once.
 
 ---
 
@@ -48,7 +55,27 @@ Phase reports: [1](docs/PHASE-1-STATUS.md) · [2](docs/PHASE-2-STATUS.md) · [3]
 | [`06-implementation-phases.md`](docs/06-implementation-phases.md) | What ships in each phase |
 | [`07-risks.md`](docs/07-risks.md) | Privacy, GPS, security and audio risks — **includes decisions needed from management** |
 | [`70-powerbi-guide.md`](docs/70-powerbi-guide.md) | Connecting Power BI: the views, the model, the measures, the security checklist |
+
+### Running it
+
+| Document | What it answers |
+|---|---|
+| [`80-local-development.md`](docs/80-local-development.md) | Developer setup, the test database, two traps this project fell into |
+| [`81-device-testing.md`](docs/81-device-testing.md) | Getting it onto an iPhone or an Android, and a 30-step test script |
+| [`82-production-deployment.md`](docs/82-production-deployment.md) | Going live, in order, with a go-live checklist |
+| [`94-backup-and-recovery.md`](docs/94-backup-and-recovery.md) | What to turn on now, and what to do on a bad day |
+| [`93-security-checklist.md`](docs/93-security-checklist.md) | What must be true before real data, and monthly |
+| [`97-privacy-checklist.md`](docs/97-privacy-checklist.md) | The four promises, how each is enforced, and how to answer "can you see where I am?" |
+| [`95-known-limitations.md`](docs/95-known-limitations.md) | Everything it does not do, and why |
+
+### Manuals (Mongolian)
+
+| Document | For |
+|---|---|
 | [`90-setup-for-non-technical.md`](docs/90-setup-for-non-technical.md) | Step-by-step setup with no assumed knowledge |
+| [`91-manual-representative.md`](docs/91-manual-representative.md) | The seven representatives |
+| [`92-manual-administrator.md`](docs/92-manual-administrator.md) | The administrator |
+| [`96-manual-manager.md`](docs/96-manual-manager.md) | The three managers |
 
 ---
 
@@ -76,7 +103,7 @@ npm start                   # scan the QR code with Expo Go
 ```
 
 ```bash
-npm test                    # 352 tests (skips DB tests if no PostgreSQL is running)
+npm test                    # 443 tests (skips DB tests if no PostgreSQL is running)
 npm run typecheck           # app + tests
 node scripts/db-provision.mjs   # rebuild a local test database from scratch
 ```

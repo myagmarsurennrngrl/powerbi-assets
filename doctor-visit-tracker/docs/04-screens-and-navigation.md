@@ -81,7 +81,7 @@ visit detail) — they just cannot act on them.
 | 19 | `/admin/users` · `/admin/user/[id]` | Хэрэглэгчийн удирдлага | admin | Create user, set role, assign manager, activate/deactivate with reason, brand assignments. Email is read-only after creation (it is the link to the login). | — |
 | 20 | `/admin/master-data` · `/admin/clinic/[id]` · `/admin/doctor/[id]` | Мастер дата | admin | Clinics / doctors / brands / products create, edit, archive. **GPS & radius editor** with an out-of-Mongolia warning; fuzzy duplicate detection when adding a doctor. CSV import is **not implemented** (see `docs/PHASE-6-STATUS.md`). | — |
 | 21 | `/settings` | Тохиргоо | all | Profile, language note, timezone, permissions status, cache size, clear cache, sign out, app version, audio-recording flag shown as **Идэвхгүй** (disabled). | **Гарах** |
-| 22 | `/sync` | Синк төлөв | all | Queue list with per-item state: Синк хийгдсэн / Хүлээгдэж буй / Синк амжилтгүй + retry + error reason. | **Дахин оролдох** |
+| 22 | `/sync` | Синк төлөв | all | Connection state, queue with per-item state (Хүлээгдэж буй / Илгээж байна / Синк амжилтгүй), the server's own message on a blocked item, retry and discard, and local storage counts. Reachable from the app-wide bar and from Тохиргоо. | **Одоо илгээх** |
 | 23 | `/audit` | Аудит лог | mgr, admin | Filterable, read-only. Export is `fn_export_visits` on the dashboard, not here. | — |
 | 24 | `/visit/unplanned` | Төлөвлөгөөнд байхгүй уулзалт | rep | Nearby clinics sorted by distance, reason (required), the same geofence and accuracy rules as a planned check-in, and an explicit note that it never counts towards the KPI. Warns if today's plan already includes the clinic. | **Уулзалт эхлүүлэх** |
 

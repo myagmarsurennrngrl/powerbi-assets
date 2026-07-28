@@ -1,5 +1,11 @@
 # 06 — Implementation Phases
 
+> **ALL SEVEN PHASES ARE COMPLETE** (2026-07-28). Status reports:
+> [1](PHASE-1-STATUS.md) · [2](PHASE-2-STATUS.md) · [3](PHASE-3-STATUS.md) · [4](PHASE-4-STATUS.md) ·
+> [5](PHASE-5-STATUS.md) · [6](PHASE-6-STATUS.md) · [7](PHASE-7-STATUS.md)
+>
+> What was deliberately left unbuilt, and why, is in [`95-known-limitations.md`](95-known-limitations.md).
+
 Each phase ends with: tests run → "what works" → "what is unfinished" → "how you can test it" → **wait for your feedback**.
 No working functionality is replaced without your confirmation.
 
