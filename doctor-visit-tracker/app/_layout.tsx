@@ -69,7 +69,18 @@ function RootNavigator() {
       <Stack.Screen name="clinic/[id]" options={{ title: mn.clinics.title }} />
       <Stack.Screen name="doctor/[id]" options={{ title: mn.doctors.title }} />
       <Stack.Screen name="plan/[id]" options={{ title: mn.planBuilder.title }} />
-      <Stack.Screen name="visit/[id]" options={{ title: mn.visitDetail.title }} />
+      <Stack.Screen name="visit/[id]/index" options={{ title: mn.visitDetail.title }} />
+      <Stack.Screen name="visit/[id]/start" options={{ title: mn.startVisit.title }} />
+      <Stack.Screen
+        name="visit/[id]/active"
+        options={{
+          title: mn.activeVisit.title,
+          // A visit in progress must be finished, not swiped away — otherwise
+          // it silently stays open and the duration becomes meaningless.
+          headerBackVisible: true,
+          gestureEnabled: false,
+        }}
+      />
       <Stack.Screen name="route/[date]" options={{ title: mn.week.title }} />
     </Stack>
   );

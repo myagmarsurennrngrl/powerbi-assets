@@ -8,9 +8,9 @@
 import React, { useCallback } from 'react';
 import { Alert, Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useAsyncData } from '../../src/data/useAsyncData';
-import { fetchPlannedVisit } from '../../src/data/planning';
-import { getSupabase } from '../../src/lib/supabase';
+import { useAsyncData } from '../../../src/data/useAsyncData';
+import { fetchPlannedVisit } from '../../../src/data/planning';
+import { getSupabase } from '../../../src/lib/supabase';
 import {
   Card,
   ErrorState,
@@ -21,11 +21,11 @@ import {
   PrimaryButton,
   SecondaryButton,
   Section,
-} from '../../src/components/ui';
-import { mn } from '../../src/lib/i18n/mn';
-import { visitStatusMn } from '../../src/lib/i18n/enums';
-import { formatDateLongMn, formatDateTimeMn } from '../../src/lib/datetime';
-import { colors, radius, spacing, typography } from '../../src/theme';
+} from '../../../src/components/ui';
+import { mn } from '../../../src/lib/i18n/mn';
+import { visitStatusMn } from '../../../src/lib/i18n/enums';
+import { formatDateLongMn, formatDateTimeMn } from '../../../src/lib/datetime';
+import { colors, radius, spacing, typography } from '../../../src/theme';
 
 type Tone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
 

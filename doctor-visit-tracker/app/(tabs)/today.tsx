@@ -36,7 +36,7 @@ import {
 import { mn } from '../../src/lib/i18n/mn';
 import { visitStatusMn } from '../../src/lib/i18n/enums';
 import { formatDateLongMn } from '../../src/lib/datetime';
-import { colors, radius, spacing, touch, typography } from '../../src/theme';
+import { colors, radius, spacing, typography } from '../../src/theme';
 
 type Tone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
 
@@ -171,6 +171,8 @@ export default function TodayScreen() {
           origin={origin}
           onOpenMap={() => openInMap(item)}
           onOpenDetail={() => router.push(`/visit/${item.planned_visit_id}`)}
+          onStart={() => router.push(`/visit/${item.planned_visit_id}/start`)}
+          onOpenActive={() => router.push(`/visit/${item.planned_visit_id}/active`)}
         />
       )}
     />
@@ -182,11 +184,15 @@ function RouteCard({
   origin,
   onOpenMap,
   onOpenDetail,
+  onStart,
+  onOpenActive,
 }: {
   stop: RouteStop;
   origin: { latitude: number; longitude: number } | null;
   onOpenMap: () => void;
   onOpenDetail: () => void;
+  onStart: () => void;
+  onOpenActive: () => void;
 }) {
   const distance = origin
     ? haversineMetres(origin, { latitude: Number(stop.latitude), longitude: Number(stop.longitude) })
@@ -251,15 +257,17 @@ function RouteCard({
       </View>
 
       {/*
-        Starting a visit needs the geofence check-in flow, which is Phase 3.
-        Showing a disabled "Уулзалт эхлүүлэх" button here would look broken, so
-        the card says plainly what is coming instead.
+        Only offered for a visit that has not started yet. The button opens the
+        confirmation screen, which is where the eight conditions are checked —
+        it never starts a visit directly, because a representative should always
+        see the distance and accuracy before committing.
       */}
-      <View style={styles.pendingPhase}>
-        <Text style={styles.pendingPhaseText}>
-          {mn.today.startVisit} · {mn.common.notImplemented} (3-р шат)
-        </Text>
-      </View>
+      {stop.status === 'planned' ? (
+        <PrimaryButton label={mn.today.startVisit} onPress={onStart} />
+      ) : null}
+      {stop.status === 'in_progress' ? (
+        <PrimaryButton label={mn.activeVisit.openActive} onPress={onOpenActive} />
+      ) : null}
     </Pressable>
   );
 }
@@ -326,16 +334,4 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   actionHalf: { flex: 1 },
 
-  pendingPhase: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: colors.borderStrong,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    minHeight: touch.row,
-    justifyContent: 'center',
-  },
-  pendingPhaseText: { ...typography.caption, color: colors.textMuted, textAlign: 'center' },
 });

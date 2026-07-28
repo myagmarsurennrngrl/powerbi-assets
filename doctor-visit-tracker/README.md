@@ -15,17 +15,19 @@ managers get visibility and KPIs; the data feeds Power BI.
 
 | | |
 |---|---|
-| **Phase** | 2 of 7 complete — see [`docs/PHASE-2-STATUS.md`](docs/PHASE-2-STATUS.md) |
-| **Tests** | 144 passing |
+| **Phase** | 3 of 7 complete — see [`docs/PHASE-3-STATUS.md`](docs/PHASE-3-STATUS.md) |
+| **Tests** | 191 passing |
 | **Platforms** | iOS and Android bundles verified |
 | **Audio recording** | Not implemented. Flag off. No recording code exists. |
 
 Phase 1 delivered authentication, roles, row-level security, the audit log, and all master
 data. Phase 2 adds weekly planning, the plan status machine with a Friday-18:00 submission
-deadline, duplicate-visit prevention, and today's route with opt-in distance. Visits, KPI,
-manager dashboards and offline support are Phases 3–7.
+deadline, duplicate-visit prevention, and today's route with opt-in distance. Phase 3 adds the
+evidence layer: geofenced check-in with all eight conditions enforced server-side, an active-visit
+timer driven by the server clock, and check-out. Visit documentation, KPI, manager dashboards and
+offline support are Phases 4–7.
 
-Phase reports: [Phase 1](docs/PHASE-1-STATUS.md) · [Phase 2](docs/PHASE-2-STATUS.md)
+Phase reports: [Phase 1](docs/PHASE-1-STATUS.md) · [Phase 2](docs/PHASE-2-STATUS.md) · [Phase 3](docs/PHASE-3-STATUS.md)
 
 ---
 
@@ -68,7 +70,7 @@ npm start                   # scan the QR code with Expo Go
 ```
 
 ```bash
-npm test                    # 144 tests (skips DB tests if no PostgreSQL is running)
+npm test                    # 191 tests (skips DB tests if no PostgreSQL is running)
 npm run typecheck           # app + tests
 node scripts/db-provision.mjs   # rebuild a local test database from scratch
 ```

@@ -38,20 +38,32 @@ describe.skipIf(!DB_AVAILABLE)('row level security', () => {
       expect(rows.map((r) => r.table_name)).toEqual([]);
     });
 
-    it('DELETE is granted only on the two child list tables, nowhere else', async () => {
+    it('DELETE is granted only on draft child-list tables, nowhere else', async () => {
       /**
        * Master data is soft-deleted and transactional data is immutable, so
        * DELETE is granted almost nowhere.
        *
-       * The two exceptions are the child lists of a plan the representative is
-       * still drafting: removing a doctor or a brand from a draft visit is
-       * ordinary editing, not destruction of a business record. Both are
-       * additionally gated by RLS to the plan owner while the plan is editable.
+       * The exceptions are all the same shape: child lists of something the
+       * representative is still drafting. Removing a doctor from a plan you are
+       * writing, or from a visit report you have not submitted, is ordinary
+       * editing — not destruction of a business record. Every one is gated by
+       * RLS to the owner AND to the draft state, so once submitted they freeze.
+       *
+       * The parent rows — plans, planned visits, visits, visit events — can
+       * never be deleted by anyone.
        *
        * This allowlist is deliberately explicit: any NEW delete grant fails
        * this test and has to be argued for.
        */
-      const ALLOWED = new Set(['planned_visit_doctor', 'planned_visit_brand']);
+      const ALLOWED = new Set([
+        // draft weekly plan
+        'planned_visit_doctor',
+        'planned_visit_brand',
+        // unsubmitted visit report
+        'visit_doctor',
+        'visit_brand',
+        'visit_product',
+      ]);
 
       const rows = await asSuperuser<{ table_name: string; grantee: string }>(
         `SELECT DISTINCT table_name, grantee
