@@ -51,12 +51,29 @@ export function useAsyncData<T>(
     };
   }, [run]);
 
-  return {
-    data,
-    loading,
-    refreshing,
-    error,
-    reload: () => void run('initial'),
-    refresh: () => void run('refresh'),
-  };
+  /**
+   * These MUST be memoised, and the reason is an infinite render loop.
+   *
+   * They were `reload: () => void run('initial')` — a new function on every
+   * render. Screens then do the natural thing:
+   *
+   *     useFocusEffect(useCallback(() => { reload(); }, [reload]));
+   *
+   * A new `reload` each render means a new callback each render, which means
+   * useFocusEffect re-runs its effect on every render, which calls reload,
+   * which sets state, which renders. Round and round.
+   *
+   * On screen it looked like this: «Ачааллаж байна…», a flash of the real
+   * screen, «Ачааллаж байна…», for ever. It hit the Home screen — the first
+   * thing anybody sees after signing in — plus both admin screens. Nothing was
+   * wrong with the data or the queries; the screen simply never stopped
+   * asking for them.
+   *
+   * `run` is itself memoised on the caller's declared dependencies, so these
+   * stay stable exactly as long as those do.
+   */
+  const reload = useCallback(() => void run('initial'), [run]);
+  const refresh = useCallback(() => void run('refresh'), [run]);
+
+  return { data, loading, refreshing, error, reload, refresh };
 }
