@@ -164,7 +164,7 @@ Key rules:
 
 ```
 doctor-visit-tracker/
-├── app/                     # Expo Router screens (the 23 screens)
+├── app/                     # Expo Router screens (see docs/04)
 ├── src/
 │   ├── lib/                 # supabase client, auth provider, i18n, dates
 │   ├── domain/              # PURE business logic (haversine, KPI, eligibility)

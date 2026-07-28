@@ -73,6 +73,17 @@ export default function TabsLayout() {
         }}
       />
 
+      {/* A manager's landing screen. */}
+      <Tabs.Screen
+        name="dashboard"
+        options={{
+          title: mn.tabs.dashboard,
+          headerTitle: mn.dashboard.title,
+          tabBarIcon: ({ focused }) => <TabIcon symbol="📈" focused={focused} />,
+          href: isManager ? undefined : null,
+        }}
+      />
+
       <Tabs.Screen
         name="kpi"
         options={{

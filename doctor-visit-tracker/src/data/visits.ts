@@ -163,6 +163,113 @@ export async function checkOut(input: CheckOutInput): Promise<Result<VisitRow>> 
   return { data: row as VisitRow, error: null };
 }
 
+// -----------------------------------------------------------------------------
+// Unplanned visits (migration 0024)
+//
+// Same location rules as a planned check-in — the geofence is not relaxed
+// because the visit was not planned. What changes is that there is no plan to
+// own, and a reason is required instead.
+// -----------------------------------------------------------------------------
+
+export interface UnplannedEligibility {
+  can_start: boolean;
+  is_rep: boolean;
+  clinic_is_active: boolean;
+  no_other_in_progress: boolean;
+  has_location: boolean;
+  accuracy_ok: boolean;
+  within_radius: boolean;
+  distance_m: number | null;
+  radius_m: number | null;
+  accuracy_threshold_m: number;
+  /** Advisory only: today's plan already includes this clinic. */
+  already_planned_here: boolean;
+  blocking_reason: string | null;
+}
+
+export interface NearbyClinic {
+  clinic_id: string;
+  clinic_name: string;
+  district: string;
+  distance_m: number;
+  radius_m: number;
+  within_radius: boolean;
+}
+
+export async function fetchNearbyClinics(position: {
+  latitude: number;
+  longitude: number;
+}): Promise<Result<NearbyClinic[]>> {
+  const supabase = getSupabase();
+  if (!supabase) return noClient();
+
+  const { data, error } = await supabase.rpc('fn_nearby_clinics', {
+    p_latitude: position.latitude,
+    p_longitude: position.longitude,
+    p_limit: 10,
+  });
+
+  if (error) return { data: null, error: businessError(error) };
+  return { data: (data ?? []) as NearbyClinic[], error: null };
+}
+
+export async function checkUnplannedEligibility(
+  clinicId: string,
+  position: { latitude: number; longitude: number; accuracyM: number | null } | null,
+): Promise<Result<UnplannedEligibility>> {
+  const supabase = getSupabase();
+  if (!supabase) return noClient();
+
+  const { data, error } = await supabase.rpc('fn_unplanned_start_eligibility', {
+    p_clinic_id: clinicId,
+    p_latitude: position?.latitude ?? null,
+    p_longitude: position?.longitude ?? null,
+    p_accuracy_m: position?.accuracyM ?? null,
+  });
+
+  if (error) return { data: null, error: businessError(error) };
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return { data: (row ?? null) as UnplannedEligibility | null, error: null };
+}
+
+export interface StartUnplannedInput {
+  clinicId: string;
+  reason: string;
+  latitude: number;
+  longitude: number;
+  accuracyM: number | null;
+  deviceTimestamp: string;
+  isMocked: boolean;
+  clientUuid: string;
+  appVersion: string;
+}
+
+export async function startUnplannedVisit(
+  input: StartUnplannedInput,
+): Promise<Result<VisitRow>> {
+  const supabase = getSupabase();
+  if (!supabase) return noClient();
+
+  const { data, error } = await supabase.rpc('fn_start_unplanned_visit', {
+    p_clinic_id: input.clinicId,
+    p_reason: input.reason,
+    p_latitude: input.latitude,
+    p_longitude: input.longitude,
+    p_accuracy_m: input.accuracyM,
+    p_device_ts: input.deviceTimestamp,
+    p_client_uuid: input.clientUuid,
+    p_app_version: input.appVersion,
+    p_is_mocked: input.isMocked,
+    p_source: 'online',
+  });
+
+  if (error) return { data: null, error: businessError(error) };
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return { data: row as VisitRow, error: null };
+}
+
 /** The caller's currently running visit, or null. */
 export async function fetchActiveVisit(): Promise<Result<ActiveVisit | null>> {
   const supabase = getSupabase();

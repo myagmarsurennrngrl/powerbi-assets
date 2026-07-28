@@ -82,8 +82,15 @@ function RootNavigator() {
         }}
       />
       <Stack.Screen name="visit/[id]/exception" options={{ title: mn.exception.title }} />
+      <Stack.Screen name="visit/unplanned" options={{ title: mn.unplanned.title }} />
       <Stack.Screen name="report/[visitId]" options={{ title: mn.completeVisit.title }} />
+      <Stack.Screen name="audit" options={{ title: mn.audit.title }} />
       <Stack.Screen name="route/[date]" options={{ title: mn.week.title }} />
+      <Stack.Screen name="admin/users" options={{ title: mn.admin.usersTitle }} />
+      <Stack.Screen name="admin/user/[id]" options={{ title: mn.admin.editUser }} />
+      <Stack.Screen name="admin/master-data" options={{ title: mn.admin.masterDataTitle }} />
+      <Stack.Screen name="admin/clinic/[id]" options={{ title: mn.admin.editClinic }} />
+      <Stack.Screen name="admin/doctor/[id]" options={{ title: mn.admin.editDoctor }} />
     </Stack>
   );
 }

@@ -186,6 +186,69 @@ export function Chip({ label }: { label: string }) {
   );
 }
 
+/**
+ * A two-button choice, used wherever a record is switched between active and
+ * inactive. Two labelled buttons rather than a switch, because a switch does
+ * not say what "off" means and these decisions have consequences.
+ */
+export function ChoiceButton({
+  label,
+  selected,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ selected, disabled }}
+      style={[
+        styles.choice,
+        selected && styles.choiceSelected,
+        disabled && styles.choiceDisabled,
+      ]}
+    >
+      <Text style={[styles.choiceText, selected && styles.choiceTextSelected]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+export function ActiveToggle({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <View style={styles.inputGroup}>
+      <View style={styles.choiceRow}>
+        <ChoiceButton
+          label={mn.common.active}
+          selected={value}
+          disabled={disabled}
+          onPress={() => onChange(true)}
+        />
+        <ChoiceButton
+          label={mn.common.inactive}
+          selected={!value}
+          disabled={disabled}
+          onPress={() => onChange(false)}
+        />
+      </View>
+      <Text style={styles.caption}>{mn.admin.isActiveHint}</Text>
+    </View>
+  );
+}
+
 // -----------------------------------------------------------------------------
 // The four mandatory data states
 // -----------------------------------------------------------------------------
@@ -346,6 +409,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
   },
   chipText: { ...typography.caption, color: colors.primaryDark, fontWeight: '600' },
+
+  choiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  choice: {
+    paddingHorizontal: spacing.md,
+    // 42 pt keeps the target comfortably tappable with cold hands in a corridor.
+    minHeight: 42,
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  choiceSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  choiceDisabled: { opacity: 0.45 },
+  choiceText: { ...typography.caption, color: colors.text, fontWeight: '600' },
+  choiceTextSelected: { color: colors.onPrimary },
 
   stateBox: { alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, gap: spacing.md },
   stateEmoji: { fontSize: 34 },

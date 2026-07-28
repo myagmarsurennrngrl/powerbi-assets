@@ -106,13 +106,18 @@ describe.skipIf(!DB_AVAILABLE)('master data quality', () => {
 
     it('allows re-adding a clinic after it was soft-deleted', async () => {
       await actingAs(USERS.admin, async (s) => {
+        // Archive a clinic with nothing scheduled. Phase 6 added a trigger that
+        // refuses to archive a clinic representatives still have on their
+        // route, so this test creates its own throwaway clinic rather than
+        // borrowing a seeded one that has planned visits.
+        await insertClinic(s, NEW_CLINIC({ code: 'CL-REUSE', name: 'Дахин Нэр' }));
         await s.query(
-          "UPDATE public.clinic SET deleted_at = now(), is_active = false WHERE code = 'CL-002'",
+          "UPDATE public.clinic SET is_active = false, deleted_at = now() WHERE code = 'CL-REUSE'",
         );
         // The partial unique index ignores soft-deleted rows, so the name frees up.
-        await insertClinic(s, NEW_CLINIC({ code: 'CL-002B', name: 'Гоо Сайхан клиник' }));
+        await insertClinic(s, NEW_CLINIC({ code: 'CL-REUSE-B', name: 'Дахин Нэр' }));
         const rows = await s.query(
-          "SELECT * FROM public.clinic WHERE lower(name) = lower('Гоо Сайхан клиник')",
+          "SELECT * FROM public.clinic WHERE lower(name) = lower('Дахин Нэр')",
         );
         expect(rows).toHaveLength(2);
       });

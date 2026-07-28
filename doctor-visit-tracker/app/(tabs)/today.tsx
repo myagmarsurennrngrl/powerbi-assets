@@ -165,6 +165,16 @@ export default function TodayScreen() {
       ListEmptyComponent={
         <EmptyState label={`${mn.today.noVisits}\n${mn.today.noVisitsHint}`} />
       }
+      // An unplanned visit is always available, including on a day with no
+      // route at all — that is precisely when one is most likely to happen.
+      ListFooterComponent={
+        <View style={styles.footer}>
+          <SecondaryButton
+            label={mn.unplanned.start}
+            onPress={() => router.push('/visit/unplanned')}
+          />
+        </View>
+      }
       renderItem={({ item }) => (
         <RouteCard
           stop={item}
@@ -283,6 +293,7 @@ const styles = StyleSheet.create({
   list: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
 
   header: { gap: spacing.sm, marginBottom: spacing.xs },
+  footer: { marginTop: spacing.md },
   date: { ...typography.heading, color: colors.text },
   summary: { ...typography.body, color: colors.textMuted },
 

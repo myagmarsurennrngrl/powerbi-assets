@@ -1,13 +1,11 @@
 /**
  * Screen 2 — Нүүр (Home dashboard)
  *
- * PHASE 2 SCOPE
- * -------------
- * Today's planned / remaining counts and this week's plan status are now real,
- * computed from actual plan data. "Completed today" is still shown as pending
- * because a visit cannot be completed until Phase 3 — reporting 0 completed
- * would read as "you have done nothing today", which is not the same thing as
- * "the feature does not exist yet". KPI and follow-ups remain labelled.
+ * Role-aware landing screen. A representative sees today's counts, this
+ * week's plan status, their brands and a link to their KPI. A manager sees
+ * links to the dashboard and the audit log.
+ *
+ * Every number here is real. Nothing on this screen is a placeholder.
  */
 import React, { useCallback } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -21,7 +19,6 @@ import {
   Chip,
   ErrorState,
   LoadingState,
-  NotImplemented,
   Pill,
   PrimaryButton,
   SecondaryButton,
@@ -45,7 +42,7 @@ const PLAN_TONE: Record<PlanStatus, Tone> = {
 };
 
 export default function HomeScreen() {
-  const { profile } = useSession();
+  const { profile, isManager, isAdmin } = useSession();
   const router = useRouter();
   const isRep = profile?.role === 'representative';
 
@@ -118,18 +115,9 @@ export default function HomeScreen() {
           <Section title={mn.today.title}>
             <View style={styles.statRow}>
               <Stat label={mn.home.todayPlanned} value={data?.plannedToday ?? 0} tone="primary" />
+              <Stat label={mn.home.completedToday} value={data?.completedToday ?? 0} tone="success" />
               <Stat label={mn.home.remainingToday} value={data?.remainingToday ?? 0} tone="warning" />
             </View>
-
-            {/*
-              Completion requires check-in/check-out, which is Phase 3. Showing
-              "0 completed" would be a claim about the representative's day
-              rather than a statement about the software.
-            */}
-            <NotImplemented
-              what={mn.home.completedToday}
-              hint="Уулзалт эхлүүлэх, дуусгах үйлдэл 3-р шатанд нэмэгдэнэ."
-            />
 
             <PrimaryButton
               label={mn.home.goToToday}
@@ -180,15 +168,37 @@ export default function HomeScreen() {
         </Section>
       ) : null}
 
-      <Section title={mn.home.weekKpi}>
-        <NotImplemented
-          what="KPI"
-          hint="Уулзалтын бүртгэл эхэлсний дараа, 5-р шатанд тооцоологдоно."
-        />
-      </Section>
+      {isRep ? (
+        <Section title={mn.home.weekKpi}>
+          <Card>
+            <SecondaryButton label={mn.kpi.title} onPress={() => router.push('/(tabs)/kpi')} />
+          </Card>
+        </Section>
+      ) : null}
 
       <Section title={mn.home.quickLinks}>
         <View style={styles.linkColumn}>
+          {isManager ? (
+            <>
+              <SecondaryButton
+                label={mn.dashboard.title}
+                onPress={() => router.push('/(tabs)/dashboard')}
+              />
+              <SecondaryButton label={mn.audit.title} onPress={() => router.push('/audit')} />
+            </>
+          ) : null}
+          {isAdmin ? (
+            <>
+              <SecondaryButton
+                label={mn.admin.usersTitle}
+                onPress={() => router.push('/admin/users')}
+              />
+              <SecondaryButton
+                label={mn.admin.masterDataTitle}
+                onPress={() => router.push('/admin/master-data')}
+              />
+            </>
+          ) : null}
           <SecondaryButton
             label={mn.clinics.title}
             onPress={() => router.push('/(tabs)/clinics')}
@@ -210,11 +220,25 @@ function Stat({
 }: {
   label: string;
   value: number;
-  tone: 'primary' | 'warning';
+  tone: 'primary' | 'warning' | 'success';
 }) {
   return (
-    <View style={[styles.stat, tone === 'warning' && styles.statWarning]}>
-      <Text style={[styles.statValue, tone === 'warning' && styles.statValueWarning]}>{value}</Text>
+    <View
+      style={[
+        styles.stat,
+        tone === 'warning' && styles.statWarning,
+        tone === 'success' && styles.statSuccess,
+      ]}
+    >
+      <Text
+        style={[
+          styles.statValue,
+          tone === 'warning' && styles.statValueWarning,
+          tone === 'success' && styles.statValueSuccess,
+        ]}
+      >
+        {value}
+      </Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
@@ -246,8 +270,10 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   statWarning: { borderColor: colors.warning },
+  statSuccess: { borderColor: colors.success },
   statValue: { ...typography.display, color: colors.primary },
   statValueWarning: { color: colors.warning },
+  statValueSuccess: { color: colors.success },
   statLabel: { ...typography.caption, color: colors.textMuted, textAlign: 'center' },
 
   planRow: {

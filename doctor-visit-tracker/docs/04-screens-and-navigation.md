@@ -78,11 +78,12 @@ visit detail) — they just cannot act on them.
 | 16 | `/(rep)/kpi` | Миний KPI | rep | Week/month switch, all 13 metrics from `docs/05`, unplanned visits shown **separately**, rule-version label. | — |
 | 17 | `/(manager)/dashboard` | Менежерийн самбар | mgr | Team completion KPI, rep ranking, missed visits, pending exceptions, visits started outside expected conditions, clinics not visited, doctors not visited, brand activity, recent-visits map. | — |
 | 18 | `/(manager)/exceptions` | Хүсэлт батлах | mgr | Pending queue → detail → approve/reject + mandatory comment. Shows KPI impact before confirming. | **Батлах / Татгалзах** |
-| 19 | `/(admin)/users` | Хэрэглэгчийн удирдлага | admin | Create user, set role, assign manager, activate/deactivate, brand assignments. | — |
-| 20 | `/(admin)/master-data` | Мастер дата | admin | Clinics / doctors / doctor-clinic / brands / products CRUD + CSV import with preview and duplicate detection + GPS & radius editor. | — |
+| 19 | `/admin/users` · `/admin/user/[id]` | Хэрэглэгчийн удирдлага | admin | Create user, set role, assign manager, activate/deactivate with reason, brand assignments. Email is read-only after creation (it is the link to the login). | — |
+| 20 | `/admin/master-data` · `/admin/clinic/[id]` · `/admin/doctor/[id]` | Мастер дата | admin | Clinics / doctors / brands / products create, edit, archive. **GPS & radius editor** with an out-of-Mongolia warning; fuzzy duplicate detection when adding a doctor. CSV import is **not implemented** (see `docs/PHASE-6-STATUS.md`). | — |
 | 21 | `/settings` | Тохиргоо | all | Profile, language note, timezone, permissions status, cache size, clear cache, sign out, app version, audio-recording flag shown as **Идэвхгүй** (disabled). | **Гарах** |
 | 22 | `/sync` | Синк төлөв | all | Queue list with per-item state: Синк хийгдсэн / Хүлээгдэж буй / Синк амжилтгүй + retry + error reason. | **Дахин оролдох** |
-| 23 | `/(manager)/audit` | Аудит лог | mgr, admin | Filterable, read-only, export. | — |
+| 23 | `/audit` | Аудит лог | mgr, admin | Filterable, read-only. Export is `fn_export_visits` on the dashboard, not here. | — |
+| 24 | `/visit/unplanned` | Төлөвлөгөөнд байхгүй уулзалт | rep | Nearby clinics sorted by distance, reason (required), the same geofence and accuracy rules as a planned check-in, and an explicit note that it never counts towards the KPI. Warns if today's plan already includes the clinic. | **Уулзалт эхлүүлэх** |
 
 ---
 
